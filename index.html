@@ -1673,7 +1673,7 @@ function openShareDialog(){
   };
   const makeLinkText = async () => { linkText = "";
     if (!inc().link) return;
-    linkText = `🔑 ${C.name}, here's the salt route app. Open this on your phone:\n${C.link}\nSign in with your PIN: ${C.pin}\nYou'll see the runs the office assigns you, and they update automatically.`; };
+    linkText = `🔑 ${C.name}, here's the salt route app.\n\nPlease press on the blue link: ${C.link}\n\nSign in with your PIN: ${C.pin}\nYou'll see the runs the office assigns you, and they update automatically.`; };
   const refresh = async (relink) => { if (relink) { await makeLinkText(); }
     lsSet("routemaps:shareopts", inc()); if (!edited) ta.value = build(); const n = ta.value.length;
     $("#shCount").textContent = n + " characters" + (n > 1800 ? " · long: some email apps cut it off, so use Copy text or Share…" : "");
