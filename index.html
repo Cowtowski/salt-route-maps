@@ -159,7 +159,7 @@
   #mapTitle{font-size:19px;padding:6px 8px}
   .btn{padding:10px 14px;border-radius:10px;font-size:15px;min-height:44px;gap:8px}
   .icon{padding:8px 10px;font-size:17px;min-width:40px;min-height:40px}
-  main{grid-template-columns:420px 1fr}
+  main{grid-template-columns:var(--sideW,420px) 1fr}
   #side{padding:16px}
   .toolbar{gap:8px;margin-bottom:14px}
   .section-title{font-size:13px;font-weight:600;margin:18px 2px 10px;letter-spacing:.05em}
@@ -212,11 +212,11 @@
   body.lay-mobile header .spacer{display:none}
   @media (max-width:760px){ body:not(.lay-desktop) .place-actions button{min-width:34px;padding:6px} body:not(.lay-desktop) header .spacer{display:none} }
   @media (max-width:760px){
-    body:not(.lay-desktop) main{grid-template-columns:1fr;grid-template-rows:30vh 1fr}
+    body:not(.lay-desktop) main{grid-template-columns:1fr;grid-template-rows:var(--mapH,30vh) 1fr}
     body:not(.lay-desktop) .mapwrap{order:1}
     body:not(.lay-desktop) aside{order:2;border-right:none;border-top:1px solid var(--line)}
   }
-  body.lay-mobile main{grid-template-columns:1fr;grid-template-rows:30vh 1fr}
+  body.lay-mobile main{grid-template-columns:1fr;grid-template-rows:var(--mapH,30vh) 1fr}
   body.lay-mobile .mapwrap{order:1}
   body.lay-mobile aside{order:2;border-right:none;border-top:1px solid var(--line)}
   body.lay-mobile #app{max-width:480px;margin:0 auto;box-shadow:0 0 0 1px var(--line)}
@@ -248,11 +248,40 @@
   .me-dot{width:16px;height:16px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 6px #0006}
   .donechip{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:#e6f4ea;color:#137333;font-size:13px;font-weight:700}
   .place.done{opacity:.6}
+  .place.done.partial{opacity:.9}
+  .partchip{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:#fef3e0;color:#b45309;font-size:13px;font-weight:700}
+  .partmiss{display:block;color:#b45309;font-size:13px;margin-top:2px}
+  .donebtn.part{background:#f29900;border-color:#f29900;color:#fff}
+  .pop-acts button.part{background:#f29900;border-color:#f29900;color:#fff}
+  /* run progress badge (e.g. 20/28 done) */
+  .prog{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:1px 9px 1px 7px;border-radius:999px;background:#f1f3f6;color:#3c4352;font-size:12.5px;font-weight:700;white-space:nowrap;vertical-align:1px;box-shadow:0 1px 3px #0002}
+  .prog i{width:9px;height:9px;border-radius:50%;background:#9aa0a6;flex:none}
+  .prog.some i{background:#f29900}.prog.all{background:#e6f4ea;color:#137333}.prog.all i{background:#188038}
+  .section-title .prog{text-transform:none;letter-spacing:0}
+  /* resizable map: drag any edge or corner (not in Drive mode) */
+  .mapwrap{background:#e4e7ec;--mt:0px;--mr:0px;--mb:0px;--ml:0px}
+  #map{position:absolute;top:var(--mt);right:var(--mr);bottom:var(--mb);left:var(--ml);height:auto}
+  .rz{position:absolute;z-index:1001;touch-action:none;user-select:none}
+  .rz[data-e=n],.rz[data-e=s]{left:calc(var(--ml) + 16px);right:calc(var(--mr) + 16px);height:10px;cursor:ns-resize}
+  .rz[data-e=e],.rz[data-e=w]{top:calc(var(--mt) + 16px);bottom:calc(var(--mb) + 16px);width:10px;cursor:ew-resize}
+  .rz[data-e=n]{top:var(--mt)}.rz[data-e=s]{bottom:var(--mb)}.rz[data-e=w]{left:var(--ml)}.rz[data-e=e]{right:var(--mr)}
+  .rz.c{width:16px;height:16px;background:#1a73e8cc;border:2px solid #fff;box-shadow:0 1px 4px #0005}
+  .rz[data-e=nw]{top:var(--mt);left:var(--ml);cursor:nwse-resize;border-radius:0 0 14px 0}
+  .rz[data-e=ne]{top:var(--mt);right:var(--mr);cursor:nesw-resize;border-radius:0 0 0 14px}
+  .rz[data-e=sw]{bottom:var(--mb);left:var(--ml);cursor:nesw-resize;border-radius:0 14px 0 0}
+  .rz[data-e=se]{bottom:var(--mb);right:var(--mr);cursor:nwse-resize;border-radius:14px 0 0 0}
+  .rz:not(.c):hover,.rz.drag:not(.c){background:#1a73e855}
+  body.rzing{cursor:grabbing;user-select:none}
+  .navmode .rz,.mapcollapsed .rz{display:none!important}
+  .navmode #map{top:0!important;right:0!important;bottom:0!important;left:0!important}
+  #truckBtn b{font-weight:700}
+  body:not(.crew) #truckBtn, body:not(.viewonly) #truckBtn{display:none!important}
   @media print{
     header,aside,#toast,#banner{display:none!important}
     main{grid-template-columns:1fr}
     #app{display:block}
     .mapwrap,#map{height:100vh!important}
+    #map{inset:0!important}.rz{display:none!important}
   }
 </style>
 </head>
@@ -292,6 +321,7 @@
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
       </div>
     </div>
+    <button class="btn" id="truckBtn" title="Change the truck you're using">🚚 <span id="truckTxt">Set truck</span></button>
     <button class="btn edit-only" id="driversBtn">👥 Drivers</button>
     <button class="btn primary" id="shareBtn">Share</button>
     <input type="file" id="fileInput" accept=".csv,.kml,.geojson,.json,.txt" multiple hidden>
@@ -301,6 +331,9 @@
     <div class="mapwrap">
       <div id="banner"><span id="bannerText">Click the map to drop a pin</span><button id="bannerCancel">Cancel</button></div>
       <div id="map"></div>
+      <div class="rz" data-e="n"></div><div class="rz" data-e="s"></div><div class="rz" data-e="e"></div><div class="rz" data-e="w"></div>
+      <div class="rz c" data-e="nw" title="Drag to resize the map · double-click to reset"></div><div class="rz c" data-e="ne" title="Drag to resize the map · double-click to reset"></div>
+      <div class="rz c" data-e="sw" title="Drag to resize the map · double-click to reset"></div><div class="rz c" data-e="se" title="Drag to resize the map · double-click to reset"></div>
       <div id="navTop"></div><div id="navBot"></div>
     </div>
   </main>
@@ -356,7 +389,7 @@ function lsSet(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e
 
 // ---------- Admin / view-only ----------
 // Everyone can view, drive and share. Only an admin (signed in on this device) can change routes, pins or info.
-const ADMIN_SALT = "08bc5f7bc32574e9", ADMIN_HASH = "a22ac35ca057d13f1163092393536259005ff7fb6fbb6e4ef11d93b3539b53cc";
+const ADMIN_SALT = "eb88736405742c00", ADMIN_HASH = "92e598622219c004fc390227ad63edb64a2a1ea847cc845783645d7100def3b5";
 let ADMIN = window.__ACCESS ? window.__ACCESS.role === "admin" : lsGet("routemaps:admin") === ADMIN_HASH;
 async function sha256hex(t){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
 function applyRole(){ document.body.classList.toggle("viewonly", !ADMIN); document.body.classList.toggle("site", !!window.__FROM_SITE); const t = $("#mapTitle"); if (t) t.readOnly = !ADMIN; }
@@ -436,8 +469,8 @@ function popupHtml(l, p, i){
       <div class="photo-tabs"><button class="on" data-ptab="street">Street View</button><button data-ptab="aerial">Aerial</button></div>
       <div class="photo-body"><div class="msg">Loading Street View…</div></div>
     </div>` : "";
-  const isD = getDone(l).has(stopNum(p, i));
-  const acts = `<div class="pop-acts"><button type="button" class="pa-done${isD ? " on" : ""}" data-pdone="${p.id}">${isD ? "✓ Done · undo" : "✓ Mark done"}</button>${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
+  const isD = getDone(l).has(stopNum(p, i)), isP = isD && !!getMissed(l, stopNum(p, i));
+  const acts = `<div class="pop-acts"><button type="button" class="pa-done${isP ? " part" : isD ? " on" : ""}" data-pdone="${p.id}">${isP ? "⚠ Partly done · finish" : isD ? "✓ Done · undo" : "✓ Mark done"}</button>${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
   return `<div class="pop">${acts}${photo}<b>${stopNum(p, i)}. ${esc(p.name || "Untitled")}</b>${p.address ? `<small>${esc(p.address)}</small>` : ""}
     <small>${esc(l.name)}</small>${noteOf(p) ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${smChip(p)}
     <div class="links"><a href="#" data-edit="${p.id}">Edit</a>${dir ? `<a href="${dir}" target="_blank" rel="noopener">Directions</a><a href="${streetLink(p)}" target="_blank" rel="noopener">Street View ↗</a>` : ""}</div></div>`;
@@ -447,8 +480,9 @@ document.addEventListener("click", ev => {
   const pd = ev.target.closest && ev.target.closest("[data-pdone]");
   if (pd){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pd.dataset.pdone); if (!f) return;
     completeStop(f.list, f.place, f.index, on => {
-      pd.textContent = on ? "✓ Done · undo" : "✓ Mark done"; pd.classList.toggle("on", on);
-      renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); }); return; }
+      const part = on && !!getMissed(f.list, stopNum(f.place, f.index));
+      pd.textContent = part ? "⚠ Partly done · finish" : on ? "✓ Done · undo" : "✓ Mark done"; pd.classList.toggle("on", on && !part); pd.classList.toggle("part", part);
+      renderSide(); doneToast(f.list, f.place, f.index, on); }); return; }
   const pp = ev.target.closest && ev.target.closest("[data-pphoto]");
   if (pp){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pp.dataset.pphoto); if (f) takePhoto(f.list, f.place, stopNum(f.place, f.index)); }
 }, true);
@@ -604,7 +638,7 @@ function listsView(){
     <div class="list-item" data-id="${l.id}">
       <span class="handle" title="Drag to reorder">⋮⋮</span>
       <input type="color" class="swatch" value="${l.color}" data-color="${l.id}" title="List colour">
-      <div class="name" data-open="${l.id}"><b>${esc(l.name)}</b><small>${l.places.length} place${l.places.length===1?"":"s"}${l.visible?"":" · hidden"}</small></div>
+      <div class="name" data-open="${l.id}"><b>${esc(l.name)}</b><small>${l.places.length} place${l.places.length===1?"":"s"}${progBadge(l)}${l.visible?"":" · hidden"}</small></div>
       <button class="icon" data-vis="${l.id}" title="${l.visible?"Hide":"Show"} on map">${l.visible?"👁":"🚫"}</button>
       <button class="icon" data-open="${l.id}" title="Open">›</button>
     </div>`).join("")}</div>
@@ -646,21 +680,21 @@ function detailView(l){
           <hr><button data-lact="del" style="color:var(--danger)">Delete list</button>
         </div></div>
     </div>
-    <div class="section-title">${l.places.length} place${l.places.length===1?"":"s"} · in your order</div>
+    <div class="section-title">${l.places.length} place${l.places.length===1?"":"s"} · in your order${progBadge(l)}</div>
     <div id="runTime"></div>
     <div id="places">${l.places.map((p,i) => placeCard(l,p,i,others)).join("")}</div>
     ${l.places.length ? `<div class="hint edit-hint">Drag ⋮⋮ (or use ▲▼) to change order. Drag a pin on the map to move it.</div>` : `<div class="hint">Search above or drop a pin to add the first place.</div>`}`;
 }
 function placeCard(l,p,i,others){
-  const editing = ui.editPlace === p.id, isDone = getDone(l).has(stopNum(p, i));
-  return `<div class="place${ui.selPlace===p.id?" sel":""}${isDone?" done":""}" data-id="${p.id}" id="pl-${p.id}">
+  const editing = ui.editPlace === p.id, isDone = getDone(l).has(stopNum(p, i)), miss = isDone ? getMissed(l, stopNum(p, i)) : "";
+  return `<div class="place${ui.selPlace===p.id?" sel":""}${isDone?" done":""}${miss?" partial":""}" data-id="${p.id}" id="pl-${p.id}">
     <div class="place-head">
       <span class="handle" title="Drag to reorder">⋮⋮</span>
       <span class="num" style="background:${l.color}">${stopNum(p, i)}</span>
       <div class="place-body" data-go="${p.id}"><b>${esc(p.name || "Untitled")}</b>${p.address?`<small>${esc(p.address)}</small>`:""}
-        ${noteOf(p) && !editing ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${hasLoc(p) ? "" : `<div class="warn">⚠ No location yet: Edit → Set on map</div>`}${!editing ? smChip(p, `onclick="event.stopPropagation()"`) : ""}${isDone ? `<span class="donechip">✓ Done</span>` : ""}</div>
+        ${noteOf(p) && !editing ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${hasLoc(p) ? "" : `<div class="warn">⚠ No location yet: Edit → Set on map</div>`}${!editing ? smChip(p, `onclick="event.stopPropagation()"`) : ""}${miss ? `<span class="partchip" title="Not done: ${esc(miss)}">⚠ Partly done</span><small class="partmiss">Not done: ${esc(miss)}</small>` : isDone ? `<span class="donechip">✓ Done</span>` : ""}</div>
       <div class="place-actions">
-        <div class="actcol"><button class="donebtn${isDone ? " on" : ""}" data-done="${p.id}" title="${isDone ? "Mark not done" : "Mark done"}">${isDone ? "✓ Done" : "✓"}</button>${logUrl() ? `<button class="photobtn" data-pphoto="${p.id}" title="Take or upload a photo">📷</button>` : ""}</div>
+        <div class="actcol"><button class="donebtn${miss ? " part" : isDone ? " on" : ""}" data-done="${p.id}" title="${miss ? "Some work not done · tap to finish" : isDone ? "Mark not done" : "Mark done"}">${miss ? "⚠" : isDone ? "✓ Done" : "✓"}</button>${logUrl() ? `<button class="photobtn" data-pphoto="${p.id}" title="Take or upload a photo">📷</button>` : ""}</div>
         <button class="icon" data-up="${p.id}" title="Move up" ${i===0?"disabled":""}>▲</button>
         <button class="icon" data-down="${p.id}" title="Move down" ${i===l.places.length-1?"disabled":""}>▼</button>
         <button class="icon" data-edit="${p.id}" title="Edit">✎</button>
@@ -733,7 +767,7 @@ function bindDetailView(l){
   side.querySelectorAll("[data-edit]").forEach(el => el.onclick = () => { ui.editPlace = ui.editPlace === el.dataset.edit ? null : el.dataset.edit; ui.selPlace = el.dataset.edit; renderSide(); scrollToPlace(el.dataset.edit); });
   const move = (id, d) => { const i = l.places.findIndex(p => p.id === id), j = i + d; if (j < 0 || j >= l.places.length) return; commit(() => { const [x] = l.places.splice(i,1); l.places.splice(j,0,x); }, {noFit: true}); };
   side.querySelectorAll("[data-done]").forEach(el => el.onclick = ev => { ev.stopPropagation(); const f = findPlace(el.dataset.done); if (!f) return;
-    completeStop(f.list, f.place, f.index, on => { renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); }); });
+    completeStop(f.list, f.place, f.index, on => { renderSide(); doneToast(f.list, f.place, f.index, on); }); });
   side.querySelectorAll("[data-up]").forEach(el => el.onclick = () => move(el.dataset.up, -1));
   side.querySelectorAll("[data-down]").forEach(el => el.onclick = () => move(el.dataset.down, 1));
   side.querySelectorAll("[data-form]").forEach(f => {
@@ -795,7 +829,7 @@ async function loadPriv(pw){
     PRIV = o; PRIV_LOADED = true; return true;
   } catch(e){ return false; }
 }
-function applyCrew(){ document.body.classList.toggle("crew", !!CREW_PW); }
+function applyCrew(){ document.body.classList.toggle("crew", !!CREW_PW); updateTruckBtn(); }
 function crewSignIn(then){
   $("#dlgBody").innerHTML = `<h3>🔓 Crew sign-in</h3>
     <p>Shows lockbox, gate and alarm codes and contact numbers, and lets you log completed stops. Use the crew password from the office.</p>
@@ -809,7 +843,7 @@ function crewSignIn(then){
     if (!(await crewOk(pw))){ $("#crErr").textContent = "Wrong password."; $("#crPw").select(); return; }
     if (!(await loadPriv(pw))){ $("#crErr").textContent = "Couldn't load the codes. Check your connection and try again."; return; }
     CREW_PW = pw; lsSet("routemaps:crew", pw); d.close(); applyCrew(); render({noFit: true}); flushLog();
-    toast("Crew mode: codes are showing on this device.", 3000); then && then();
+    toast("Crew mode: codes are showing on this device.", 3000); askDriver(() => then && then(), {signin: true});
   };
 }
 function crewSignOut(){ CREW_PW = ""; PRIV = {}; PRIV_LOADED = false; try { localStorage.removeItem("routemaps:crew"); } catch(e){} applyCrew(); render({noFit: true}); toast("Signed out of crew mode."); }
@@ -1035,14 +1069,47 @@ function openSettings(){
     <p style="font-size:14px;margin:4px 0 8px">Drag this button to your bookmarks bar once. Then open the snow database, log in, and click it.</p>
     <a href="${esc(SYNC_BOOKMARKLET)}" class="btn" style="display:inline-flex;cursor:grab" data-bm="1">⟳ Sync salt routes</a>
     <div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap"><button class="btn" id="stDrivers">👥 Manage drivers</button>
+    <button class="btn" id="stPw">🔑 Change admin password</button>
     <button class="btn danger" id="stReset">🔄 Reset everyone's access</button></div>
     <footer><button class="btn" id="stCancel">Cancel</button><button class="btn primary" id="stSave">Save</button></footer>`;
   const d = $("#dlg"); if (!d.open) d.showModal();
   $("#stCancel").onclick = () => d.close();
   $("#dlgBody [data-bm]").onclick = ev => { ev.preventDefault(); toast("Drag this button up to your bookmarks bar.", 3000); };
   $("#stReset").onclick = () => resetAccess();
+  $("#stPw").onclick = () => changeAdminPw();
   $("#stDrivers").onclick = () => openDrivers();
   $("#stSave").onclick = () => { const v = $("#stLog").value.trim(); commit(() => { S.config = {...(S.config || {}), logUrl: v}; }, {noFit: true}); d.close(); toast(v ? "Saved. Publish so crews get it." : "Saved."); };
+}
+
+// Change admin password: re-locks keys.enc with the new password (downloaded for you to upload to GitHub).
+// The Google Sheet's Code.gs checks the admin password too, so it must be changed there as well.
+async function changeAdminPw(){
+  const ak = await getAdminKeys(); if (!ak) return;
+  const field = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px";
+  $("#dlgBody").innerHTML = `<h3>🔑 Change admin password</h3>
+    <p>Type the new password twice. A new <b>keys.enc</b> is downloaded, locked with it.</p>
+    <form id="cpForm"><input id="cpNew" type="password" autocomplete="new-password" placeholder="New admin password" style="${field};margin-bottom:8px">
+    <input id="cpNew2" type="password" autocomplete="new-password" placeholder="Type it again" style="${field}">
+    <p id="cpErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
+    <footer><button class="btn" type="button" id="cpCancel">Cancel</button><button class="btn primary" type="submit">Change password</button></footer></form>`;
+  const d = $("#dlg"); if (!d.open) d.showModal(); $("#cpNew").focus();
+  $("#cpCancel").onclick = () => d.close();
+  $("#cpForm").onsubmit = async e => {
+    e.preventDefault(); const a = $("#cpNew").value, b = $("#cpNew2").value;
+    if (a.length < 4){ $("#cpErr").textContent = "Use at least 4 characters."; return; }
+    if (a !== b){ $("#cpErr").textContent = "The two passwords don't match."; return; }
+    const buf = await encPack({keys: ak.keys, logKey: ak.logKey}, a);
+    const el = document.createElement("a"); el.href = URL.createObjectURL(new Blob([buf], {type: "application/octet-stream"})); el.download = "keys.enc"; document.body.appendChild(el); el.click(); setTimeout(() => el.remove(), 1000);
+    ADMIN_KEYS = {...ak, pw: a};
+    $("#dlgBody").innerHTML = `<h3>🔑 Almost done</h3>
+      <p><b>keys.enc</b> was downloaded, locked with the new password. To finish:</p>
+      <ol style="padding-left:20px;line-height:1.6">
+        <li>Upload <b>keys.enc</b> to GitHub and commit. Until then the old password still works.</li>
+        <li>In your Google Sheet, open <b>Extensions → Apps Script</b>, change the admin password in <b>Code.gs</b> to the new one, then <b>Deploy → Manage deployments → Edit → New version</b>. Until then, managing drivers says "doesn't have the new admin password".</li>
+        <li>Sign out and sign back in with the new password.</li></ol>
+      <footer><button class="btn" id="cpClose">Close</button><a class="btn primary" href="https://github.com/Cowtowski/salt-route-maps/upload/main" target="_blank" rel="noopener">Open GitHub upload</a></footer>`;
+    $("#cpClose").onclick = () => d.close();
+  };
 }
 
 // ---------- Completion log ----------
@@ -1050,21 +1117,39 @@ const LOGQ = "routemaps:logq"; let FLUSHING = false, warnedCrew = false;
 const logUrl = () => (S.config && S.config.logUrl) || "";
 // Drivers are already known by their PIN, so only the truck number is asked (once per phone).
 const knownDriver = () => (ACCESS && ACCESS.role === "crew" && ACCESS.name) || "";
-function askDriver(then){
+// Asked on every sign-in (and at the start of a new shift); can be changed any time with the 🚚 button in the header.
+function askDriver(then, opts = {}){
   const d0 = lsGet("routemaps:driver") || {}, known = knownDriver();
   const field = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px";
-  $("#dlgBody").innerHTML = `<h3>🚚 ${known ? "Truck number" : "Who's driving?"}</h3>
-    <p>${known ? `Hi ${esc(known)}, which truck are you in? It's saved on this phone and added to each completed stop.` : "Saved on this phone and added to each completed stop."}</p>
+  const ask = opts.change ? "Change the truck you're using. New completed stops will be logged with it." :
+    opts.signin ? "Which truck are you using today? It's added to each completed stop." : "Saved on this phone and added to each completed stop.";
+  $("#dlgBody").innerHTML = `<h3>🚚 ${opts.change ? "Change truck" : known ? "Which truck?" : "Who's driving?"}</h3>
+    <p>${known ? `Hi ${esc(known)}. ` : ""}${ask}</p>
     <form id="drForm">${known ? "" : `<input id="drName" value="${esc(d0.name || "")}" placeholder="Your name" style="${field};margin-bottom:8px">`}
     <input id="drTruck" value="${esc(d0.truck || "")}" placeholder="Truck # (e.g. 208)" inputmode="text" style="${field}">
+    ${d0.truck && !opts.change ? `<p style="font-size:13.5px;color:#6b7385;margin:6px 0 0">Last time: truck <b>${esc(d0.truck)}</b>. Keep it or type a new one.</p>` : ""}
     <p id="drErr" style="color:var(--danger);min-height:20px;margin:6px 0 0"></p>
-    <footer><button class="btn primary" type="submit">Save</button></footer></form>`;
-  const d = $("#dlg"); if (!d.open) d.showModal(); (known ? $("#drTruck") : $("#drName")).focus();
+    <footer>${opts.change ? `<button class="btn" type="button" id="drCancel">Cancel</button>` : ""}<button class="btn primary" type="submit">${opts.change ? "Change truck" : "Save"}</button></footer></form>`;
+  const d = $("#dlg"); if (!d.open) d.showModal(); const ti = known ? $("#drTruck") : $("#drName"); ti.focus(); ti.select && ti.select();
+  const c = $("#drCancel"); if (c) c.onclick = () => d.close();
   $("#drForm").onsubmit = e => { e.preventDefault();
     const name = known || ($("#drName") ? $("#drName").value.trim() : ""), truck = $("#drTruck").value.trim();
     if (!name){ $("#drErr").textContent = "Type your name."; return $("#drName").focus(); }
     if (!truck){ $("#drErr").textContent = "Type your truck number."; return $("#drTruck").focus(); }
-    lsSet("routemaps:driver", {name, truck}); d.close(); then && then(); };
+    const changed = d0.truck && d0.truck !== truck;
+    lsSet("routemaps:driver", {name, truck, truckT: Date.now()}); d.close(); updateTruckBtn();
+    if (opts.change || changed) toast("🚚 Now using truck " + truck);
+    then && then(); };
+}
+function updateTruckBtn(){
+  const t = $("#truckTxt"); if (!t) return; const dv = lsGet("routemaps:driver");
+  t.innerHTML = dv && dv.truck ? `Truck <b>${esc(dv.truck)}</b>` : "Set truck";
+}
+// Crew signed in fresh with their PIN, never picked a truck, or it's a new shift (12+ hours since they last picked).
+function needTruck(){
+  if (ADMIN || !ACCESS || ACCESS.role !== "crew") return false;
+  const dv = lsGet("routemaps:driver");
+  return !!window.__FRESH_SIGNIN || !dv || !dv.truck || Date.now() - (dv.truckT || 0) > 12 * 3600e3;
 }
 // Phone's real GPS position for the log (never the property's own pin).
 function gpsNow(){
@@ -1104,7 +1189,7 @@ window.addEventListener("online", flushLog); setInterval(flushLog, 60000);
 function markDone(l, p, i, on, det){
   const num = stopNum(p, i), d = getDone(l);
   if (on === undefined) on = !d.has(num);
-  on ? d.add(num) : d.delete(num); setDone(l, d); if (on) stampDone(l, num);
+  on ? d.add(num) : d.delete(num); setDone(l, d); if (on) stampDone(l, num, Date.now(), "", (det && det.missed) || "");
   if (on) logEvent("done", l, p, num, "", det || {});
   return on;
 }
@@ -1124,12 +1209,16 @@ function scopeItems(places){
   }
   return [];
 }
-function doneForm(l, places, num, onSave){
+function doneForm(l, places, num, onSave, prev){
   const items = scopeItems(places), p0 = places[0];
+  // Finishing a partly done stop: tick what was already done.
+  const missedBefore = new Set(prev && prev.missed ? prev.missed.split(/;\s*/) : []);
+  const prevDone = new Set(prev ? items.map((t, i) => missedBefore.has(t) ? -1 : i).filter(i => i > -1) : []);
   const notes = (noteOf(places.find(p => /Notes?:/i.test(noteOf(p))) || p0).split(/Notes?:/i)[1] || "").trim();
   const cb = (name, label, i) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 2px;border-bottom:1px solid #f0f2f5;cursor:pointer">
-      <input type="checkbox" name="${name}" value="${i}" style="width:22px;height:22px;flex:none;margin-top:1px"><span>${esc(label)}</span></label>`;
-  $("#dlgBody").innerHTML = `<h3>✓ Stop ${esc(num)} done</h3><p style="margin-top:0"><b>${esc(p0.name)}</b></p>
+      <input type="checkbox" name="${name}" value="${i}"${name === "work" && prevDone.has(i) ? " checked" : ""} style="width:22px;height:22px;flex:none;margin-top:1px"><span>${esc(label)}</span></label>`;
+  $("#dlgBody").innerHTML = `<h3>${prev ? "⚠ Stop " + esc(num) + " partly done" : "✓ Stop " + esc(num) + " done"}</h3><p style="margin-top:0"><b>${esc(p0.name)}</b></p>
+    ${prev ? `<p style="background:#fef3e0;border:1px solid #f9d28b;color:#7a4f01;border-radius:8px;padding:8px 10px;font-size:14px">Not done yet: <b>${esc(prev.missed)}</b>. Tick what you've now finished.</p>` : ""}
     <form id="dfForm">
     ${items.length ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><b>Work completed</b><a href="#" id="dfAll">Select all</a></div>
       <div style="border:1px solid var(--line);border-radius:10px;padding:0 10px;margin:6px 0 10px;max-height:32vh;overflow:auto">${items.map((t, i) => cb("work", t, i)).join("")}</div>` : ""}
@@ -1138,10 +1227,11 @@ function doneForm(l, places, num, onSave){
     <div style="border:1px solid var(--line);border-radius:10px;padding:0 10px;margin:6px 0 10px">${MATERIALS.map((t, i) => cb("mat", t, i)).join("")}</div>
     <b>Comments</b>
     <textarea id="dfCom" placeholder="Anything the office should know (blocked lot, cars in the way, damage…)" style="width:100%;box-sizing:border-box;min-height:80px;margin-top:6px;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px"></textarea>
-    <footer><button class="btn" type="button" id="dfCancel">Cancel</button><button class="btn primary" type="submit">✓ Mark done</button></footer></form>`;
+    <footer style="flex-wrap:wrap">${prev ? `<button class="btn danger" type="button" id="dfUndo" style="margin-right:auto">Mark not done</button>` : ""}<button class="btn" type="button" id="dfCancel">Cancel</button><button class="btn primary" type="submit">✓ ${prev ? "Save" : "Mark done"}</button></footer></form>`;
   const d = $("#dlg"); if (!d.open) d.showModal();
   const all = $("#dfAll"); if (all) all.onclick = e => { e.preventDefault(); const bs = [...$("#dfForm").querySelectorAll("input[name=work]")]; const on = bs.some(b => !b.checked); bs.forEach(b => b.checked = on); all.textContent = on ? "Clear all" : "Select all"; };
   $("#dfCancel").onclick = () => d.close();
+  const un = $("#dfUndo"); if (un) un.onclick = () => { d.close(); prev.onUndo && prev.onUndo(); };
   $("#dfForm").onsubmit = e => {
     e.preventDefault(); const f = $("#dfForm");
     const work = [...f.querySelectorAll("input[name=work]:checked")].map(b => items[+b.value]);
@@ -1154,9 +1244,16 @@ function doneForm(l, places, num, onSave){
 // Marks a stop done (with the form) or undoes it; cb(on) after.
 function completeStop(l, p, i, cb){
   const num = stopNum(p, i);
+  const places = l.places.filter((q, k) => stopNum(q, k) === num), missed = getMissed(l, num);
+  if (getDone(l).has(num) && missed)   // partly done: reopen the form to finish the rest (or undo)
+    return doneForm(l, places.length ? places : [p], num, det => { markDone(l, p, i, true, det); cb(true); },
+      {missed, onUndo: () => { markDone(l, p, i, false); cb(false); }});
   if (getDone(l).has(num)){ markDone(l, p, i, false); return cb(false); }
-  const places = l.places.filter((q, k) => stopNum(q, k) === num);
   doneForm(l, places.length ? places : [p], num, det => { markDone(l, p, i, true, det); cb(true); });
+}
+function doneToast(l, p, i, on){
+  const n = stopNum(p, i);
+  toast(!on ? "Marked not done" : getMissed(l, n) ? "Stop " + n + " partly done ⚠" : "Stop " + n + " done ✓");
 }
 function takePhoto(l, p, num){
   const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
@@ -1208,11 +1305,11 @@ async function fetchLog(since){
 // Stops already serviced on THIS run (this phone + every truck in the log), within the storm window.
 async function serviced(l){
   const out = new Map(), t = getDoneT(l), d = getDone(l);
-  d.forEach(n => out.set(n, {t: (t[n] && t[n].t) || null, by: (t[n] && t[n].by) || "this phone"}));
+  d.forEach(n => out.set(n, {t: (t[n] && t[n].t) || null, by: (t[n] && t[n].by) || "this phone", missed: (t[n] && t[n].missed) || ""}));
   const rows = await fetchLog(Date.now() - stormHours() * 3600e3), cut = cutoff(Date.now() - stormHours() * 3600e3, rows);
   (rows || []).filter(r => r.event === "done" && r.run === l.name && r.t >= cut).forEach(r => {
     const n = String(r.stop), cur = out.get(n), by = r.driver ? r.driver + (r.truck ? " (" + r.truck + ")" : "") : "another truck";
-    if (!cur || !cur.t || r.t > cur.t) out.set(n, {t: r.t, by});
+    if (!cur || !cur.t || r.t > cur.t) out.set(n, {t: r.t, by, missed: r.missed || ""});
   });
   return out;
 }
@@ -1223,7 +1320,7 @@ function servicedPrompt(l, sv){
     $("#dlgBody").innerHTML = `<h3>⚠ Already serviced on this run</h3>
       <p><b>${list.length}</b> of ${st.length} stops on <b>${esc(l.name)}</b> are already done:</p>
       <div style="max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 10px;margin-bottom:8px">${list.map(s => { const v = sv.get(s.num);
-        return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><b>#${esc(s.num)} ${esc(s.places[0].name)}</b><br><small style="color:#6b7385">✓ ${v.t ? fmtT(v.t) + " · " : ""}${esc(v.by)}</small></div>`; }).join("")}</div>
+        return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><b>#${esc(s.num)} ${esc(s.places[0].name)}</b><br><small style="color:#6b7385">${v.missed ? "⚠" : "✓"} ${v.t ? fmtT(v.t) + " · " : ""}${esc(v.by)}</small>${v.missed ? `<small style="display:block;color:#b45309">Not done: ${esc(v.missed)}</small>` : ""}</div>`; }).join("")}</div>
       <p style="font-size:14px;color:#6b7385">Only this run counts. The same property on another run isn't affected.</p>
       <footer style="flex-wrap:wrap"><button class="btn" id="svCancel">Cancel</button><button class="btn" id="svAll">Service all again</button>
         <button class="btn primary" id="svSkip" ${left ? "" : "disabled"}>${left ? `Skip them · drive ${left} left` : "Nothing left to drive"}</button></footer>`;
@@ -1240,7 +1337,7 @@ async function driveRun(l){
   if (sv.size){
     const c = await servicedPrompt(l, sv);
     if (c === "cancel") return;
-    if (c === "skip"){ const d = getDone(l); sv.forEach((v, n) => { if (!d.has(n)){ d.add(n); stampDone(l, n, v.t || Date.now(), v.by); } }); setDone(l, d); }
+    if (c === "skip"){ const d = getDone(l); sv.forEach((v, n) => { if (!d.has(n)){ d.add(n); stampDone(l, n, v.t || Date.now(), v.by, v.missed || ""); } }); setDone(l, d); }
     if (c === "all"){ setDone(l, new Set()); }
   }
   startNav(l);
@@ -1394,6 +1491,48 @@ document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); undo(); }
   if (e.key === "Escape" && ui.pick) endPick();
 });
+$("#truckBtn").onclick = () => askDriver(null, {change: true});
+
+// ---------- Resizable map: drag any edge or corner (off in Drive mode) ----------
+// The edge next to the list resizes the split; the outer edges pull the map in from that side. Double-click a corner to reset.
+(function(){
+  const wrap = $(".mapwrap"), mainEl = $("main"), KEY = "routemaps:mapsize";
+  let sz = Object.assign({sideW: 0, mapH: 0, mt: 0, mr: 0, mb: 0, ml: 0}, lsGet(KEY) || {});
+  const apply = () => {
+    sz.sideW ? mainEl.style.setProperty("--sideW", sz.sideW + "px") : mainEl.style.removeProperty("--sideW");
+    sz.mapH ? mainEl.style.setProperty("--mapH", sz.mapH + "px") : mainEl.style.removeProperty("--mapH");
+    ["mt","mr","mb","ml"].forEach(k => wrap.style.setProperty("--" + k, sz[k] + "px"));
+  };
+  apply();
+  let raf = 0; const refit = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; map.invalidateSize({pan: false}); }); };
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const stacked = () => { const a = $("aside").getBoundingClientRect(), m = wrap.getBoundingClientRect(); return a.top >= m.bottom - 2; };
+  wrap.querySelectorAll(".rz").forEach(h => {
+    h.addEventListener("pointerdown", ev => {
+      if (document.body.classList.contains("navmode")) return;
+      ev.preventDefault(); ev.stopPropagation(); h.setPointerCapture(ev.pointerId);
+      const e = h.dataset.e, x0 = ev.clientX, y0 = ev.clientY, s0 = {...sz}, st = stacked();
+      const W = wrap.clientWidth, H = wrap.clientHeight, aside = $("aside").getBoundingClientRect();
+      const side0 = s0.sideW || aside.width, mapH0 = s0.mapH || H, MIN = 140;
+      h.classList.add("drag"); document.body.classList.add("rzing");
+      const move = m => {
+        const dx = m.clientX - x0, dy = m.clientY - y0;
+        if (e.includes("w")){ if (st) sz.ml = clamp(s0.ml + dx, 0, W - s0.mr - MIN); else sz.sideW = clamp(side0 + dx, 220, innerWidth - MIN - s0.mr); }
+        if (e.includes("e")) sz.mr = clamp(s0.mr - dx, 0, W - sz.ml - MIN);
+        if (e.includes("n")) sz.mt = clamp(s0.mt + dy, 0, (st ? mapH0 : H) - s0.mb - MIN);
+        if (e.includes("s")){ if (st) sz.mapH = clamp(mapH0 + dy, MIN + sz.mt, innerHeight - 160); else sz.mb = clamp(s0.mb - dy, 0, H - sz.mt - MIN); }
+        apply(); refit();
+      };
+      const up = () => { h.removeEventListener("pointermove", move); h.removeEventListener("pointerup", up); h.removeEventListener("pointercancel", up);
+        h.classList.remove("drag"); document.body.classList.remove("rzing"); lsSet(KEY, sz); refit(); };
+      h.addEventListener("pointermove", move); h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
+    });
+    h.addEventListener("dblclick", ev => { ev.preventDefault(); sz = {sideW: 0, mapH: 0, mt: 0, mr: 0, mb: 0, ml: 0}; apply(); lsSet(KEY, sz); refit(); toast("Map size reset"); });
+  });
+  addEventListener("resize", () => { const H = wrap.clientHeight, W = wrap.clientWidth;
+    if (sz.mt + sz.mb > H - 140 || sz.ml + sz.mr > W - 140){ sz.mt = sz.mb = sz.ml = sz.mr = 0; apply(); refit(); } });
+})();
+
 const fm = $("#fileMenu");
 $("#fileBtn").onclick = e => { e.stopPropagation(); fm.classList.toggle("open"); };
 document.addEventListener("click", () => document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open")));
@@ -1830,7 +1969,16 @@ const doneKey = l => "routemaps:done:" + l.id;
 const getDone = l => new Set(lsGet(doneKey(l)) || []);
 const setDone = (l, set) => { lsSet(doneKey(l), [...set]); const t = getDoneT(l); Object.keys(t).forEach(k => { if (!set.has(k)) delete t[k]; }); lsSet("routemaps:donet:" + l.id, t); };
 const getDoneT = l => lsGet("routemaps:donet:" + l.id) || {};
-const stampDone = (l, num, t = Date.now(), by = "") => { const o = getDoneT(l); o[num] = {t, by}; lsSet("routemaps:donet:" + l.id, o); };
+const stampDone = (l, num, t = Date.now(), by = "", missed = "") => { const o = getDoneT(l); o[num] = {t, by}; if (missed) o[num].missed = missed; lsSet("routemaps:donet:" + l.id, o); };
+// Work items left undone on a stop marked done ("" when everything was done).
+const getMissed = (l, num) => { const v = getDoneT(l)[num]; return getDone(l).has(num) && v && v.missed || ""; };
+// Badge like "20/28 done": fully done stops / all stops on the run (partly done ones are counted separately).
+function progBadge(l){
+  const st = navStops(l); if (!st.length) return "";
+  const d = getDone(l), part = st.filter(s => d.has(s.num) && getMissed(l, s.num)).length, full = st.filter(s => d.has(s.num)).length - part;
+  const cls = full === st.length ? " all" : full || part ? " some" : "";
+  return ` <span class="prog${cls}" title="${full} of ${st.length} stops completed${part ? ", " + part + " partly done" : ""}"><i></i>${full}/${st.length} done${part ? ` · ${part} ⚠` : ""}</span>`;
+}
 function navStops(l){
   const out = [], seen = new Map();
   l.places.forEach((p, i) => { const n = stopNum(p, i); if (!seen.has(n)){ seen.set(n, out.length); out.push({num: n, places: [p]}); } else out[seen.get(n)].places.push(p); });
@@ -1972,7 +2120,8 @@ function navBottom(s, meta, extra=""){
   $("#navBot").innerHTML = `<div class="nav-stop"><span class="num" style="background:${NAV.list.color}">${s.num}</span>
       <div style="min-width:0;flex:1"><b>${esc(s.target.name)}</b><small>${meta ? esc(meta) + " · " : ""}Stop ${NAV.idx+1} of ${st.length} · ${doneN} done</small>
       ${(() => { if (!getDone(NAV.list).has(s.num)) return ""; const v = getDoneT(NAV.list)[s.num] || (NAV.sv && NAV.sv.get(s.num)) || {};
-        return `<div style="background:#fef7e0;border:1px solid #f9e29c;color:#7a4f01;border-radius:8px;padding:6px 10px;margin-top:6px;font-weight:600">⚠ Already serviced on this run${v.t ? " at " + fmtT(v.t) : ""}${v.by ? " · " + esc(v.by) : ""}</div>`; })()}
+        const mi = getMissed(NAV.list, s.num) || v.missed;
+        return `<div style="background:#fef7e0;border:1px solid #f9e29c;color:#7a4f01;border-radius:8px;padding:6px 10px;margin-top:6px;font-weight:600">⚠ ${mi ? "Partly serviced" : "Already serviced"} on this run${v.t ? " at " + fmtT(v.t) : ""}${v.by ? " · " + esc(v.by) : ""}${mi ? `<br><span style="font-weight:500">Not done: ${esc(mi)}</span>` : ""}</div>`; })()}
       ${noteOf(s.places[0]) ? `<div class="nav-note">${esc(noteOf(s.places[0]))}</div>` : ""}</div></div>
     ${extra}
     <div class="nav-btns">
@@ -1994,7 +2143,7 @@ function navArrived(s){
   $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
   navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done, next stop</button></div>`);
   const np = $("#nvPhoto"); if (np) np.onclick = () => takePhoto(NAV.list, s.target, s.num);
-  $("#nvDone").onclick = () => doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
+  $("#nvDone").onclick = () => doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num, Date.now(), "", det.missed || ""); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
     const n = nextUndone(NAV.idx + 1) >= 0 ? nextUndone(NAV.idx + 1) : nextUndone(0);
     if (n < 0){ say("Route complete"); toast("Route complete. Every stop is done."); stopNav(); return; }
     NAV.idx = n; NAV.arrivedAt = null; NAV.route = null; drawNav(); fetchRoute(); });
@@ -2051,14 +2200,18 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
   if (S.lists.length === 1){ ui.openList = S.lists[0].id; }
   render();
   if (S.lists.length === 1) fitList(S.lists[0]);
-  if (navigator.geolocation){
+  const locPrompt = async () => {
+    if (!navigator.geolocation) return;
     const st = await locState(), later = lsGet("routemaps:locLater") || 0;
     if (st !== "granted" && Date.now() - later > 864e5) setTimeout(() => {
       if ($("#dlg").open) return;
       if (st === "denied"){ lsSet("routemaps:locLater", Date.now()); locHelp(); } else askLocation(false);
     }, 700);
-  }
-  initCrew(); registerSW(); setTimeout(flushLog, 3000);
+  };
+  initCrew();
+  // Every crew sign-in asks which truck they're in (then location), so each completed stop is logged with the right truck.
+  if (needTruck()){ window.__FRESH_SIGNIN = false; setTimeout(() => askDriver(locPrompt, {signin: true}), 300); } else locPrompt();
+  registerSW(); setTimeout(flushLog, 3000);
   if (!window.EMBEDDED_MAP && !lsGet("routemaps:seen")){ lsSet("routemaps:seen", 1); toast("Tip: File → Import brings in a Google Takeout CSV or KML", 5000); }
 })();
 });
@@ -2170,7 +2323,7 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
         const j = pin ? await driverLogin(pin, "Signed in with PIN") : null;
         if (!j) err.textContent = "Couldn't reach the office. Check your signal and try again.";
         else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : "That PIN isn't right. Check it and try again.";
-        else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || [], signedAt: Date.now()}; store(acc); await openWith(acc); okd = true; }
+        else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || [], signedAt: Date.now()}; store(acc); await openWith(acc); window.__FRESH_SIGNIN = true; okd = true; }
       } else {
         if (await adminOpen(inp.value)){ store({role: "admin", pw: inp.value}); okd = true; } else err.textContent = "Wrong password.";
       }
