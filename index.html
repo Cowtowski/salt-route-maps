@@ -1048,15 +1048,23 @@ function openSettings(){
 // ---------- Completion log ----------
 const LOGQ = "routemaps:logq"; let FLUSHING = false, warnedCrew = false;
 const logUrl = () => (S.config && S.config.logUrl) || "";
+// Drivers are already known by their PIN, so only the truck number is asked (once per phone).
+const knownDriver = () => (ACCESS && ACCESS.role === "crew" && ACCESS.name) || "";
 function askDriver(then){
-  const d0 = lsGet("routemaps:driver") || {};
-  $("#dlgBody").innerHTML = `<h3>🚚 Who's driving?</h3><p>Saved on this phone and added to each completed stop.</p>
-    <form id="drForm"><input id="drName" value="${esc(d0.name || "")}" placeholder="Your name" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
-    <input id="drTruck" value="${esc(d0.truck || "")}" placeholder="Truck # (e.g. 208)" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
+  const d0 = lsGet("routemaps:driver") || {}, known = knownDriver();
+  const field = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px";
+  $("#dlgBody").innerHTML = `<h3>🚚 ${known ? "Truck number" : "Who's driving?"}</h3>
+    <p>${known ? `Hi ${esc(known)}, which truck are you in? It's saved on this phone and added to each completed stop.` : "Saved on this phone and added to each completed stop."}</p>
+    <form id="drForm">${known ? "" : `<input id="drName" value="${esc(d0.name || "")}" placeholder="Your name" style="${field};margin-bottom:8px">`}
+    <input id="drTruck" value="${esc(d0.truck || "")}" placeholder="Truck # (e.g. 208)" inputmode="text" style="${field}">
+    <p id="drErr" style="color:var(--danger);min-height:20px;margin:6px 0 0"></p>
     <footer><button class="btn primary" type="submit">Save</button></footer></form>`;
-  const d = $("#dlg"); if (!d.open) d.showModal(); $("#drName").focus();
-  $("#drForm").onsubmit = e => { e.preventDefault(); const name = $("#drName").value.trim(); if (!name) return $("#drName").focus();
-    lsSet("routemaps:driver", {name, truck: $("#drTruck").value.trim()}); d.close(); then && then(); };
+  const d = $("#dlg"); if (!d.open) d.showModal(); (known ? $("#drTruck") : $("#drName")).focus();
+  $("#drForm").onsubmit = e => { e.preventDefault();
+    const name = known || ($("#drName") ? $("#drName").value.trim() : ""), truck = $("#drTruck").value.trim();
+    if (!name){ $("#drErr").textContent = "Type your name."; return $("#drName").focus(); }
+    if (!truck){ $("#drErr").textContent = "Type your truck number."; return $("#drTruck").focus(); }
+    lsSet("routemaps:driver", {name, truck}); d.close(); then && then(); };
 }
 // Phone's real GPS position for the log (never the property's own pin).
 function gpsNow(){
@@ -1069,7 +1077,8 @@ function gpsNow(){
 async function logEvent(event, l, p, num, photo, extra = {}){
   if (!logUrl()) return;
   if (!CREW_PW){ if (!warnedCrew){ warnedCrew = true; toast("Saved on this phone. Sign in as crew to send it to the office log.", 3500); } return; }
-  const dv = lsGet("routemaps:driver"); if (!dv) return askDriver(() => logEvent(event, l, p, num, photo, extra));
+  const dv = lsGet("routemaps:driver"); if (!dv || !dv.truck) return askDriver(() => logEvent(event, l, p, num, photo, extra));
+  if (knownDriver()) dv.name = knownDriver();
   const t = extra.t || Date.now();
   const g = extra.noGps ? null : (extra.pos || await gpsNow());
   const dist = g && hasLoc(p) ? Math.round(hav([g.lat, g.lng], [p.lat, p.lng])) : "";
