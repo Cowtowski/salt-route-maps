@@ -1075,7 +1075,7 @@ async function logEvent(event, l, p, num, photo, extra = {}){
   const dist = g && hasLoc(p) ? Math.round(hav([g.lat, g.lng], [p.lat, p.lng])) : "";
   const e = {id: uid() + uid(), t, event, run: l.name, stop: num, name: p.name, address: p.address || "", driver: dv.name, truck: dv.truck || "",
     lat: g ? +g.lat.toFixed(6) : "", lng: g ? +g.lng.toFixed(6) : "", acc: g && g.acc ? Math.round(g.acc) : "", dist: extra.dist ?? dist,
-    onsite: extra.onsite || "", photo: photo || "", work: extra.work || "", missed: extra.missed || "", materials: extra.materials || "", comment: extra.comment || ""};
+    onsite: extra.onsite || "", signedIn: (window.__ACCESS && window.__ACCESS.signedAt) || "", photo: photo || "", work: extra.work || "", missed: extra.missed || "", materials: extra.materials || "", comment: extra.comment || ""};
   const q = lsGet(LOGQ) || []; q.push(e);
   try { localStorage.setItem(LOGQ, JSON.stringify(q)); } catch(err){ sendLog(e); return; }
   flushLog();
@@ -2109,12 +2109,16 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
       const r = await fetch("keys.enc", {cache: "no-cache"}); if (!r.ok) return false;
       const o = await decPw(new Uint8Array(await r.arrayBuffer()), pw); if (!o) return false;
       window.__ADMIN_PW = pw;
-      return openWith({role: "admin", name: "Admin", keys: o.keys, logKey: o.logKey});
+      return openWith({role: "admin", name: "Admin", keys: o.keys, logKey: o.logKey, signedAt: Date.now()});
     } catch(e){ return false; }
   }
   // Ask the office sheet which runs this PIN may see right now.
-  async function driverLogin(pin){
-    try { const j = await api({action: "login", pin}); return j; } catch(e){ return null; }
+  const device = () => { const u = navigator.userAgent;
+    const os = /Android/i.test(u) ? "Android" : /iPhone|iPad/i.test(u) ? "iPhone" : /Windows/i.test(u) ? "Windows" : /Mac/i.test(u) ? "Mac" : "Other";
+    const br = /SamsungBrowser/i.test(u) ? "Samsung Internet" : /Edg\//i.test(u) ? "Edge" : /CriOS|Chrome/i.test(u) ? "Chrome" : /Safari/i.test(u) ? "Safari" : /Firefox/i.test(u) ? "Firefox" : "Browser";
+    return os + " · " + br; };
+  async function driverLogin(pin, how){
+    try { const j = await api({action: "login", pin, log: how, device: device()}); return j; } catch(e){ return null; }
   }
   const wantAdmin = /[#&]admin\b/.test(location.hash);
   const clearHash = () => history.replaceState(null, "", location.pathname + location.search);
@@ -2122,10 +2126,10 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
   if (!wantAdmin && stored){
     if (stored.role === "admin"){ if (await adminOpen(stored.pw)) return run(); store(null); }
     else if (stored.pin){
-      const j = await driverLogin(stored.pin);
-      if (j && j.ok){ const a = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin: stored.pin, runs: j.runs || []}; store(a); await openWith(a); return run(); }
+      const j = await driverLogin(stored.pin, "Opened the app");
+      if (j && j.ok){ const a = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin: stored.pin, runs: j.runs || [], signedAt: Date.now()}; store(a); await openWith(a); return run(); }
       if (j && !j.ok && j.error === "bad pin") store(null);                       // removed or PIN changed
-      else { await openWith({...stored, offline: true}); return run(); }        // no signal: use what this phone already has
+      else { await openWith({...stored, offline: true, signedAt: Date.now()}); return run(); }        // no signal: use what this phone already has
     }
   }
 
@@ -2154,10 +2158,10 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
       let okd = false;
       if (mode === "pin"){
         const pin = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-        const j = pin ? await driverLogin(pin) : null;
+        const j = pin ? await driverLogin(pin, "Signed in with PIN") : null;
         if (!j) err.textContent = "Couldn't reach the office. Check your signal and try again.";
         else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : "That PIN isn't right. Check it and try again.";
-        else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || []}; store(acc); await openWith(acc); okd = true; }
+        else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || [], signedAt: Date.now()}; store(acc); await openWith(acc); okd = true; }
       } else {
         if (await adminOpen(inp.value)){ store({role: "admin", pw: inp.value}); okd = true; } else err.textContent = "Wrong password.";
       }
