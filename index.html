@@ -267,7 +267,7 @@
         <button data-act="print">Print current view</button>
         <hr>
         <button data-act="crew-in" class="crew-out-only local-only">🔓 Crew sign-in (show codes)</button>
-        <button data-act="progress">📊 Storm progress</button>
+        <button data-act="progress" class="edit-only">📊 Storm progress</button>
         <button data-act="crew-out" class="crew-only local-only">Crew sign out</button>
         <button data-act="signout" class="site-only view-only">Sign out of this phone</button>
         <hr>
@@ -1342,7 +1342,7 @@ fm.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { fm.classList.
   if (a === "settings") openSettings();
   if (a === "crew-in") crewSignIn();
   if (a === "crew-out") crewSignOut();
-  if (a === "progress") showProgress();
+  if (a === "progress" && ADMIN) showProgress();
   if (a.startsWith("lay-")){ const mode = a.slice(4); commit(() => { S.layout = mode; }, {view: true}); applyLayout(); toast(mode === "auto" ? "Layout: fits the screen" : "Layout: " + mode + " (this file opens this way)"); }
 });
 
