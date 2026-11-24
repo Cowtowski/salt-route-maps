@@ -1,0 +1,2097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" id="vp" content="width=device-width, initial-scale=1">
+<title>Route Maps</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a73e8">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#fff; --ink:#1d2330; --muted:#6b7385; --line:#e3e6ec;
+    --accent:#1a73e8; --accent-ink:#fff; --danger:#c62828; --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer}
+  #app{display:grid;grid-template-rows:auto 1fr;height:100%}
+  header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  #mapTitle{font-weight:650;font-size:16px;border:1px solid transparent;border-radius:6px;padding:4px 6px;min-width:120px;background:transparent}
+  #mapTitle:hover,#mapTitle:focus{border-color:var(--line);outline:none}
+  .spacer{flex:1}
+  .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .btn:hover{background:#f0f2f6}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .btn.primary:hover{filter:brightness(.95)}
+  .btn.danger{color:var(--danger)}
+  .btn.on{background:#e8f0fe;border-color:#aecbfa;color:#174ea6}
+  .btn:disabled{opacity:.45;cursor:default}
+  .icon{border:none;background:transparent;padding:4px 6px;border-radius:6px;color:var(--muted)}
+  .icon:hover{background:#eef0f4;color:var(--ink)}
+  main{display:grid;grid-template-columns:360px 1fr;min-height:0}
+  aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+  #side{overflow:auto;flex:1;padding:10px}
+  #map{min-height:0;height:100%}
+  .row{display:flex;align-items:center;gap:8px}
+  .list-item{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:6px;background:#fff}
+  .list-item:hover{border-color:#c9cfdb}
+  .list-item .name{flex:1;min-width:0;cursor:pointer}
+  .list-item .name b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .list-item .name small{color:var(--muted)}
+  .handle{cursor:grab;color:#a0a7b5;padding:2px 2px;user-select:none;touch-action:none}
+  .swatch{width:22px;height:22px;border:none;padding:0;border-radius:50%;overflow:hidden;cursor:pointer;flex:none;background:none}
+  .swatch::-webkit-color-swatch-wrapper{padding:0}.swatch::-webkit-color-swatch{border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #0002}
+  .swatch::-moz-color-swatch{border:2px solid #fff;border-radius:50%}
+  .section-title{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:12px 2px 6px}
+  .hint{color:var(--muted);font-size:13px;padding:6px 2px}
+  .place{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:6px;background:#fff}
+  .place.sel{border-color:var(--accent);box-shadow:0 0 0 2px #1a73e822}
+  .place-head{display:flex;align-items:flex-start;gap:8px;padding:8px}
+  .num{flex:none;min-width:24px;height:24px;border-radius:12px;color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center;padding:0 6px;margin-top:1px}
+  .place-body{flex:1;min-width:0;cursor:pointer}
+  .place-body b{display:block;word-break:break-word}
+  .place-body small{color:var(--muted);display:block;word-break:break-word}
+  .place-body .note{color:#3c4352;font-size:12.5px;white-space:pre-wrap;margin-top:2px}
+  .warn{color:#b26a00;font-size:12px}
+  .place-actions{display:flex;flex:none}
+  .edit{padding:0 8px 10px 40px;display:grid;gap:6px}
+  .edit label{font-size:12px;color:var(--muted);display:grid;gap:2px}
+  .edit input,.edit textarea,.edit select{border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;background:#fff}
+  .edit textarea{min-height:56px;resize:vertical}
+  .search{position:relative;margin-bottom:8px}
+  .search input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .results{border:1px solid var(--line);border-radius:8px;margin-top:4px;background:#fff;overflow:hidden}
+  .results div{padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .results div:last-child{border-bottom:none}
+  .results div:hover{background:#f3f6fc}
+  .results small{color:var(--muted);display:block}
+  .detail-head{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .detail-head input.title{flex:1;min-width:0;font-weight:650;font-size:15px;border:1px solid transparent;border-radius:6px;padding:4px 6px}
+  .detail-head input.title:hover,.detail-head input.title:focus{border-color:var(--line);outline:none}
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .sortable-ghost{opacity:.35}
+  .pin{width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 4px #0006;display:grid;place-items:center}
+  .pin span{transform:rotate(45deg);color:#fff;font-weight:700;font-size:11px;font-family:system-ui,sans-serif}
+  .pin.dim{opacity:.55}
+  .leaflet-popup-content{margin:10px 12px;font:13px/1.4 system-ui,sans-serif}
+  .pop b{display:block;font-size:14px}.pop small{color:#666;display:block}.pop .note{white-space:pre-wrap;margin-top:4px}
+  .smchip{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 12px;border-radius:999px;background:#fff4e5;border:1px solid #f5c47a;color:#8a4b00;font-size:14px;font-weight:600;text-decoration:none}
+  .smchip:hover{background:#ffe8c7}
+  .pop .links{margin-top:6px;display:flex;gap:10px;flex-wrap:wrap}
+  .pop-acts{display:flex;gap:8px;margin:0 0 8px}
+  .pop-acts button{flex:1;min-height:42px;border-radius:10px;font:700 15px system-ui,sans-serif;cursor:pointer;border:1.5px solid #188038;background:#fff;color:#188038}
+  .pop-acts button.on{background:#188038;color:#fff}
+  .pop-acts .pa-photo{border-color:#1a73e8;color:#1a73e8;flex:0 0 auto;padding:0 14px}
+  .photo{margin:-2px 0 8px;border-radius:8px;overflow:hidden;background:#e8eaed;position:relative}
+  .photo-tabs{display:flex;gap:2px;position:absolute;top:6px;left:6px;z-index:2}
+  .photo-tabs button{border:none;background:#000a;color:#fff;font:600 11px system-ui,sans-serif;padding:3px 8px;border-radius:5px;cursor:pointer}
+  .photo-tabs button.on{background:#1a73e8}
+  .photo-body{height:170px;position:relative}
+  .photo-body img,.photo-body iframe{width:100%;height:170px;display:block;border:0;object-fit:cover;cursor:zoom-in}
+  .photo-body .dot{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#ea4335;border:2px solid #fff;box-shadow:0 0 0 1px #0006;pointer-events:none}
+  .photo-body .msg{position:absolute;inset:0;display:grid;place-items:center;color:#5f6368;font-size:12px;text-align:center;padding:10px}
+  .photo-big img{width:min(900px,90vw);height:auto;display:block;border-radius:8px}
+  .pickmode #map{cursor:crosshair}
+  #banner{display:none;position:absolute;z-index:1000;left:50%;top:10px;transform:translateX(-50%);background:#202124;color:#fff;padding:8px 12px;border-radius:8px;box-shadow:0 2px 10px #0004}
+  .pickmode #banner{display:flex;gap:10px;align-items:center}
+  #banner button{background:#fff2;border:none;color:#fff;border-radius:6px;padding:3px 8px}
+  .mapwrap{position:relative;min-height:0}
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#202124;color:#fff;padding:9px 14px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:2000;max-width:90vw}
+  #toast.show{opacity:1}
+  dialog{border:none;border-radius:14px;padding:0;max-width:min(560px,94vw);box-shadow:0 10px 40px #0004}
+  dialog::backdrop{background:#0006}
+  .dlg{padding:18px 20px}
+  .dlg h3{margin:0 0 8px}
+  .dlg p{margin:6px 0;color:#3c4352}
+  .dlg .opts{display:grid;gap:8px;margin:12px 0}
+  .dlg .opt{display:flex;gap:10px;align-items:flex-start;text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
+  .dlg .opt:hover{background:#f5f7fb}
+  .dlg .opt small{color:var(--muted);display:block}
+  .dlg footer{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+  .menu{position:relative}
+  .menu-pop{display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 20px #0002;z-index:1500;min-width:230px;padding:4px}
+  .menu.open .menu-pop{display:block}
+  .menu-pop button{display:block;width:100%;text-align:left;border:none;background:none;padding:8px 10px;border-radius:6px}
+  .menu-pop button:hover{background:#f1f3f7}
+  .menu-pop hr{border:none;border-top:1px solid var(--line);margin:4px 0}
+  body.viewonly .handle, body.viewonly [data-up], body.viewonly [data-down], body.viewonly [data-edit], body.viewonly #newList,
+  body.viewonly #dropPin, body.viewonly #searchForm, body.viewonly #undoBtn, body.viewonly .edit-only, body.viewonly [data-act="import"],
+  body.viewonly [data-lact="dup"], body.viewonly [data-lact="reverse"], body.viewonly [data-lact="del"], body.viewonly .edit-hint{display:none!important}
+  body.viewonly input.swatch{pointer-events:none}
+  body.viewonly #mapTitle, body.viewonly .detail-head input.title{pointer-events:none}
+  body:not(.viewonly) .view-only{display:none!important}
+  body:not(.crew) .crew-only{display:none!important}
+  body.viewonly #shareBtn, body.viewonly [data-act^="exp-"], body.viewonly [data-lact="csv"], body.viewonly [data-lact="kml"]{display:none!important}
+  body.site .local-only{display:none!important}
+  body:not(.site) .site-only{display:none!important}
+  .pinbox{background:#e8f0fe;border:1px solid #aecbfa;border-radius:12px;padding:12px 14px;margin:6px 0 10px}
+  .pinbox .pin{font:800 26px ui-monospace,Consolas,monospace;letter-spacing:.08em;color:#174ea6}
+  body.crew .crew-out-only{display:none!important}
+  .donebtn{border:1.5px solid #188038;color:#188038;background:#fff;border-radius:10px;min-width:44px;min-height:40px;padding:6px 10px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .donebtn.on{background:#188038;color:#fff}
+  .actcol{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+  .photobtn{border:1.5px solid #1a73e8;color:#1a73e8;background:#fff;border-radius:10px;min-width:44px;min-height:38px;padding:4px 8px;font-size:17px;cursor:pointer}
+  @media (max-width:760px){ .photo-body,.photo-body img,.photo-body iframe{height:120px} }
+  body.lay-mobile .photo-body, body.lay-mobile .photo-body img, body.lay-mobile .photo-body iframe{height:120px}
+  .updated{font-size:13px;color:var(--muted);margin:-4px 2px 10px}
+  #runTime{display:none;font-size:14px;background:#f1f6fe;border:1px solid #d2e3fc;border-radius:10px;padding:8px 12px;margin:0 0 10px}
+  .adminbadge{background:#fce8e6;color:#c5221f;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:700;white-space:nowrap}
+
+  /* ---- Clearer, roomier, bigger-text theme ---- */
+  html,body{font-size:16px;line-height:1.5}
+  header{padding:12px 16px;gap:10px}
+  #mapTitle{font-size:19px;padding:6px 8px}
+  .btn{padding:10px 14px;border-radius:10px;font-size:15px;min-height:44px;gap:8px}
+  .icon{padding:8px 10px;font-size:17px;min-width:40px;min-height:40px}
+  main{grid-template-columns:420px 1fr}
+  #side{padding:16px}
+  .toolbar{gap:8px;margin-bottom:14px}
+  .section-title{font-size:13px;font-weight:600;margin:18px 2px 10px;letter-spacing:.05em}
+  .hint{font-size:14px;padding:10px 2px}
+  .list-item{padding:14px;gap:12px;margin-bottom:10px;border-radius:12px}
+  .list-item .name b{font-size:16px;white-space:normal}
+  .list-item .name small{font-size:14px}
+  .swatch{width:26px;height:26px}
+  .handle{font-size:18px;padding:4px}
+  .detail-head{gap:8px;margin-bottom:14px}
+  .detail-head input.title{font-size:18px;padding:6px 8px}
+  .search input{padding:12px 14px;font-size:16px;border-radius:10px}
+  .results div{padding:12px 14px}
+  .place{margin-bottom:12px;border-radius:12px}
+  .place-head{padding:14px;gap:12px}
+  .num{min-width:30px;height:30px;border-radius:15px;font-size:14px;margin-top:0}
+  .place-body b{font-size:16.5px;line-height:1.35}
+  .place-body small{font-size:14px;margin-top:2px}
+  .place-body .note{font-size:14.5px;line-height:1.5;margin-top:6px;color:#2f3646}
+  .warn{font-size:14px;margin-top:4px}
+  .edit{padding:0 14px 16px 56px;gap:10px}
+  .edit label{font-size:14px;gap:4px}
+  .edit input,.edit textarea,.edit select{padding:10px 12px;font-size:16px;border-radius:8px}
+  .edit textarea{min-height:80px}
+  .pin{width:34px;height:34px}
+  .pin span{font-size:13px}
+  .leaflet-popup-content{margin:12px 14px;font-size:15px;line-height:1.5}
+  .pop b{font-size:16.5px}
+  .pop small{font-size:14px}
+  .pop .note{font-size:14.5px;margin-top:6px}
+  .pop .links{gap:14px;margin-top:10px;font-size:15px}
+  .photo-tabs button{font-size:13px;padding:5px 10px}
+  .photo-body,.photo-body img,.photo-body iframe{height:190px}
+  .menu-pop{min-width:270px;padding:6px}
+  .menu-pop button{padding:12px 14px;font-size:15px}
+  dialog{max-width:min(620px,94vw)}
+  .dlg{padding:22px 24px}
+  .dlg h3{font-size:20px;margin-bottom:12px}
+  .dlg p{font-size:15px}
+  .dlg .opts{gap:10px}
+  .dlg .opt{padding:14px;font-size:15px;gap:12px}
+  .dlg .opt small{font-size:14px;margin-top:2px}
+  .dlg .opt input[type=checkbox]{width:20px;height:20px;flex:none;margin-top:2px}
+  #toast{font-size:15px;padding:12px 18px;border-radius:10px}
+  #banner{font-size:15px;padding:10px 14px}
+  .leaflet-control-zoom a{width:40px!important;height:40px!important;line-height:40px!important;font-size:20px!important}
+  body.lay-mobile #app{max-width:520px}
+  body.lay-mobile .place-actions .icon,body.lay-mobile .place-actions button{min-width:34px;padding:6px 6px}
+  body.lay-mobile .place-head{gap:10px;padding:14px 10px 14px 12px}
+  body.lay-mobile header .spacer{display:none}
+  @media (max-width:760px){ body:not(.lay-desktop) .place-actions button{min-width:34px;padding:6px} body:not(.lay-desktop) header .spacer{display:none} }
+  @media (max-width:760px){
+    body:not(.lay-desktop) main{grid-template-columns:1fr;grid-template-rows:30vh 1fr}
+    body:not(.lay-desktop) .mapwrap{order:1}
+    body:not(.lay-desktop) aside{order:2;border-right:none;border-top:1px solid var(--line)}
+  }
+  body.lay-mobile main{grid-template-columns:1fr;grid-template-rows:30vh 1fr}
+  body.lay-mobile .mapwrap{order:1}
+  body.lay-mobile aside{order:2;border-right:none;border-top:1px solid var(--line)}
+  body.lay-mobile #app{max-width:480px;margin:0 auto;box-shadow:0 0 0 1px var(--line)}
+  .menu-pop .chk{display:inline-block;width:16px;color:var(--accent)}
+  /* collapsible map */
+  body.mapcollapsed:not(.navmode) .mapwrap{display:none}
+  body.mapcollapsed:not(.navmode) main{grid-template-columns:1fr!important;grid-template-rows:1fr!important}
+  body.mapcollapsed:not(.navmode) aside{border-top:none}
+  #mapToggle.on{background:#e8f0fe;border-color:#aecbfa;color:#174ea6}
+
+  /* ---- Drive mode ---- */
+  #navTop,#navBot{display:none}
+  .navmode #navTop{display:flex;position:absolute;z-index:1100;left:10px;right:10px;top:10px;gap:14px;align-items:center;background:#0b5e3b;color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 4px 16px #0005}
+  .navmode #navBot{display:block;position:absolute;z-index:1100;left:10px;right:10px;bottom:22px;background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 4px 16px #0004;max-height:46%;overflow:auto}
+  .nav-arrow{font-size:38px;line-height:1;min-width:44px;text-align:center}
+  .nav-dist{font-size:26px;font-weight:800;line-height:1.1}
+  .nav-instr{font-size:18px;font-weight:600;line-height:1.3}
+  .nav-stop{display:flex;gap:12px;align-items:flex-start}
+  .nav-stop b{display:block;font-size:17px}.nav-stop small{color:var(--muted);font-size:14px;display:block}
+  .nav-note{font-size:14px;color:#2f3646;margin-top:4px;max-height:4.5em;overflow:auto}
+  .nav-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .nav-btns .btn{min-height:44px;padding:8px 12px}
+  .navmode header,.navmode aside{display:none!important}
+  .navmode main{grid-template-columns:1fr!important;grid-template-rows:1fr!important}
+  .navmode #app{grid-template-rows:1fr!important}
+  .navmode .leaflet-control-zoom{margin-top:110px}
+  .navmode .leaflet-control-layers{margin-top:110px}
+  .me{width:26px;height:26px;border-radius:50%;background:#1a73e844;display:grid;place-items:center}
+  .me-dot{width:16px;height:16px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 6px #0006}
+  .donechip{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:#e6f4ea;color:#137333;font-size:13px;font-weight:700}
+  .place.done{opacity:.6}
+  @media print{
+    header,aside,#toast,#banner{display:none!important}
+    main{grid-template-columns:1fr}
+    #app{display:block}
+    .mapwrap,#map{height:100vh!important}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <input id="mapTitle" aria-label="Map title" spellcheck="false"><span class="adminbadge edit-only">ADMIN</span>
+    <div class="spacer"></div>
+    <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">↶ <span class="hide-sm">Undo</span></button>
+    <button class="btn" id="mapToggle" title="Show or hide the map">🗺️ <span id="mapToggleTxt">Hide map</span></button>
+    <label class="btn" title="Draw lines between stops in order"><input type="checkbox" id="lineToggle"> <span class="hide-sm">Route lines</span></label>
+    <div class="menu" id="fileMenu">
+      <button class="btn" id="fileBtn">File ▾</button>
+      <div class="menu-pop">
+        <button data-act="import">Import… <small style="color:#888">(CSV, KML, GeoJSON, JSON)</small></button>
+        <hr>
+        <button data-act="exp-kml">Export KML (Google Earth / My Maps)</button>
+        <button data-act="exp-csv">Export CSV (spreadsheet)</button>
+        <button data-act="exp-geojson">Export GeoJSON</button>
+        <button data-act="exp-json">Export backup (.json)</button>
+        <hr>
+        <button data-act="print">Print current view</button>
+        <hr>
+        <button data-act="crew-in" class="crew-out-only local-only">🔓 Crew sign-in (show codes)</button>
+        <button data-act="progress">📊 Storm progress</button>
+        <button data-act="crew-out" class="crew-only local-only">Crew sign out</button>
+        <button data-act="signout" class="site-only view-only">Sign out of this phone</button>
+        <hr>
+        <button data-act="admin-in" class="view-only">🔑 Admin sign-in</button>
+        <button data-act="settings" class="edit-only">⚙ Settings</button>
+        <button data-act="publish" class="edit-only">⬆ Publish to site</button>
+        <button data-act="admin-out" class="edit-only">Admin sign out</button>
+        <hr>
+        <div style="padding:4px 10px;font-size:12px;color:#888">Layout when opened</div>
+        <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
+        <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
+        <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
+      </div>
+    </div>
+    <button class="btn edit-only" id="driversBtn">👥 Drivers</button>
+    <button class="btn primary" id="shareBtn">Share</button>
+    <input type="file" id="fileInput" accept=".csv,.kml,.geojson,.json,.txt" multiple hidden>
+  </header>
+  <main>
+    <aside><div id="side"></div></aside>
+    <div class="mapwrap">
+      <div id="banner"><span id="bannerText">Click the map to drop a pin</span><button id="bannerCancel">Cancel</button></div>
+      <div id="map"></div>
+      <div id="navTop"></div><div id="navBot"></div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+/* Map data saved into this file by "Download map file". Do not edit by hand. */
+window.EMBEDDED_MAP = /*DATA_START*/null/*DATA_END*/;
+</script>
+<script>
+/* Site map images built into this file. */
+window.EMBEDDED_SITEMAPS = /*SM_START*/null/*SM_END*/;
+</script>
+<script>
+window.__appMain = (function(){
+"use strict";
+// Snapshot of this page's own source, taken before anything changes the DOM,
+// so "Download map file" can write a copy with the data baked in.
+const SOURCE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+const HOSTED = "https://cowtowski.github.io/salt-route-maps/";
+const COLORS = ["#1a73e8","#d93025","#188038","#f29900","#9334e6","#e8710a","#12a4af","#c5221f","#5f6368","#b80672"];
+const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const stopNum = (p, i) => { const m = /^#\s*(\d+)/.exec(p.note || ""); return m ? m[1] : String(i + 1); };
+const SM = window.EMBEDDED_SITEMAPS || {};
+const hasSM = p => !!(p.smimg && SM[p.smimg]) || !!p.sitemap;
+const smChip = (p, extra="") => hasSM(p) ? `<a class="smchip" href="${esc(p.smimg && SM[p.smimg] ? "#" : p.sitemap)}" ${p.smimg && SM[p.smimg] ? `data-sm="${p.id}"` : `target="_blank" rel="noopener"`} ${extra}>📄 Site map</a>` : "";
+const hasLoc = p => typeof p.lat === "number" && typeof p.lng === "number" && !isNaN(p.lat) && !isNaN(p.lng);
+
+// ---------- state ----------
+function blankMap(){
+  return {id: uid(), title: "Route Maps", savedAt: 0, showLines: true, layout: "mobile",
+    view: {lat: 43.7, lng: -79.39, z: 11},
+    lists: [{id: uid(), name: "My first list", color: COLORS[0], visible: true, places: []}]};
+}
+function normalize(m){
+  if (!m || !Array.isArray(m.lists)) return blankMap();
+  m.id = m.id || uid(); m.title = m.title || "Route Maps";
+  if (typeof m.showLines !== "boolean") m.showLines = true;
+  if (!["desktop","mobile","auto"].includes(m.layout)) m.layout = "mobile";
+  m.lists.forEach((l,i) => { l.id = l.id || uid(); l.name = l.name || ("List " + (i+1));
+    l.color = l.color || COLORS[i % COLORS.length]; l.visible = l.visible !== false;
+    l.places = (l.places || []).map(p => ({id: p.id || uid(), name: p.name || "", address: p.address || "",
+      note: p.note || "", sitemap: p.sitemap || "", smimg: p.smimg || "", lat: p.lat == null ? null : +p.lat, lng: p.lng == null ? null : +p.lng})); });
+  return m;
+}
+function lsGet(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }
+function lsSet(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+
+// ---------- Admin / view-only ----------
+// Everyone can view, drive and share. Only an admin (signed in on this device) can change routes, pins or info.
+const ADMIN_SALT = "08bc5f7bc32574e9", ADMIN_HASH = "a22ac35ca057d13f1163092393536259005ff7fb6fbb6e4ef11d93b3539b53cc";
+let ADMIN = window.__ACCESS ? window.__ACCESS.role === "admin" : lsGet("routemaps:admin") === ADMIN_HASH;
+async function sha256hex(t){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+function applyRole(){ document.body.classList.toggle("viewonly", !ADMIN); document.body.classList.toggle("site", !!window.__FROM_SITE); const t = $("#mapTitle"); if (t) t.readOnly = !ADMIN; }
+
+let S = (function load(){
+  const fromHash = window.__HASH_MAP;
+  if (fromHash) return normalize(fromHash);
+  const emb = window.EMBEDDED_MAP ? normalize(window.EMBEDDED_MAP) : null;
+  if (emb && !ADMIN) return emb;   // viewers always see the published routes
+  const lastId = lsGet("routemaps:last");
+  const key = "routemaps:" + (emb ? emb.id : lastId);
+  const local = lsGet(key);
+  if (emb && local && (local.savedAt||0) > (emb.savedAt||0)) return normalize(local);
+  if (emb) return emb;
+  if (local) return normalize(local);
+  return blankMap();
+})();
+
+let ui = {openList: null, selPlace: null, editPlace: null, results: null, pick: null};
+let undoStack = [];
+
+function save(){
+  S.savedAt = Date.now();
+  lsSet("routemaps:" + S.id, S); lsSet("routemaps:last", S.id);
+}
+function commit(fn, opts={}){
+  if (!ADMIN && !opts.view){ toast("View only. Only the admin can change routes."); render({noFit: true}); return; }
+  undoStack.push(JSON.stringify(S)); if (undoStack.length > 60) undoStack.shift();
+  fn(); save(); render(opts);
+}
+function undo(){
+  if (!undoStack.length) return toast("Nothing to undo");
+  S = JSON.parse(undoStack.pop()); save();
+  if (ui.openList && !getList(ui.openList)) ui.openList = null;
+  render(); toast("Undone");
+}
+const getList = id => S.lists.find(l => l.id === id);
+function findPlace(pid){ for (const l of S.lists){ const i = l.places.findIndex(p => p.id === pid); if (i > -1) return {list: l, place: l.places[i], index: i}; } return null; }
+
+// ---------- map ----------
+const map = L.map("map", {zoomControl: true}).setView([S.view.lat, S.view.lng], S.view.z);
+const street = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+  {crossOrigin: true, maxZoom: 20, maxNativeZoom: 19, attribution: "Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"});
+const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'});
+const esriAttr = "Imagery &copy; Esri, Maxar, Earthstar Geographics";
+const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom: 20, maxNativeZoom: 19, attribution: esriAttr});
+const satLabels = L.layerGroup([
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom: 20, maxNativeZoom: 19, attribution: esriAttr}),
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", {maxZoom: 20, maxNativeZoom: 19}),
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {maxZoom: 20, maxNativeZoom: 19})
+]);
+const baseKey = "routemaps:base";
+const bases = {"Map": street, "Satellite": sat, "Satellite + labels": satLabels, "OpenStreetMap": osm};
+(bases[lsGet(baseKey)] || street).addTo(map);
+L.control.layers(bases, null, {position: "topright"}).addTo(map);
+map.on("baselayerchange", e => lsSet(baseKey, e.name));
+L.control.scale({imperial: false}).addTo(map);
+const layer = L.layerGroup().addTo(map);
+const markers = {};
+map.on("moveend", () => { const c = map.getCenter(); S.view = {lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), z: map.getZoom()}; lsSet("routemaps:" + S.id, S); });
+
+function pinIcon(color, label, dim){
+  return L.divIcon({className: "", iconSize: [28,28], iconAnchor: [14,28], popupAnchor: [0,-26],
+    html: `<div class="pin${dim?" dim":""}" style="background:${color}"><span>${label}</span></div>`});
+}
+function aerialUrl(p, w=600, h=340, halfWidthM=90){
+  const halfH = halfWidthM * h / w;
+  const dLat = halfH / 111320, dLng = halfWidthM / (111320 * Math.cos(p.lat * Math.PI / 180));
+  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${(p.lng-dLng).toFixed(6)},${(p.lat-dLat).toFixed(6)},${(p.lng+dLng).toFixed(6)},${(p.lat+dLat).toFixed(6)}&bboxSR=4326&imageSR=3857&size=${w},${h}&format=jpg&f=image`;
+}
+const streetEmbed = p => `https://maps.google.com/maps?layer=c&cbll=${p.lat},${p.lng}&cbp=12,0,0,0,0&output=svembed`;
+const streetLink = p => `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lng}`;
+function popupHtml(l, p, i){
+  const dir = hasLoc(p) ? `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}` : "";
+  const photo = hasLoc(p) ? `<div class="photo" data-photo="${p.id}">
+      <div class="photo-tabs"><button class="on" data-ptab="street">Street View</button><button data-ptab="aerial">Aerial</button></div>
+      <div class="photo-body"><div class="msg">Loading Street View…</div></div>
+    </div>` : "";
+  const isD = getDone(l).has(stopNum(p, i));
+  const acts = `<div class="pop-acts"><button type="button" class="pa-done${isD ? " on" : ""}" data-pdone="${p.id}">${isD ? "✓ Done · undo" : "✓ Mark done"}</button>${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
+  return `<div class="pop">${acts}${photo}<b>${stopNum(p, i)}. ${esc(p.name || "Untitled")}</b>${p.address ? `<small>${esc(p.address)}</small>` : ""}
+    <small>${esc(l.name)}</small>${noteOf(p) ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${smChip(p)}
+    <div class="links"><a href="#" data-edit="${p.id}">Edit</a>${dir ? `<a href="${dir}" target="_blank" rel="noopener">Directions</a><a href="${streetLink(p)}" target="_blank" rel="noopener">Street View ↗</a>` : ""}</div></div>`;
+}
+// Done / Photo buttons in map popups and the list (one handler, works after any re-render)
+document.addEventListener("click", ev => {
+  const pd = ev.target.closest && ev.target.closest("[data-pdone]");
+  if (pd){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pd.dataset.pdone); if (!f) return;
+    const on = markDone(f.list, f.place, f.index);
+    pd.textContent = on ? "✓ Done · undo" : "✓ Mark done"; pd.classList.toggle("on", on);
+    renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); return; }
+  const pp = ev.target.closest && ev.target.closest("[data-pphoto]");
+  if (pp){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pp.dataset.pphoto); if (f) takePhoto(f.list, f.place, stopNum(f.place, f.index)); }
+}, true);
+function bindPhoto(el){
+  const box = el.querySelector("[data-photo]"); if (!box) return;
+  const f = findPlace(box.dataset.photo); if (!f) return; const p = f.place;
+  const body = box.querySelector(".photo-body");
+  const show = tab => {
+    box.querySelectorAll("[data-ptab]").forEach(b => b.classList.toggle("on", b.dataset.ptab === tab));
+    if (tab === "aerial"){
+      body.innerHTML = `<div class="msg">Loading photo…</div><img alt="Aerial photo" src="${aerialUrl(p)}"><span class="dot"></span>`;
+      const img = body.querySelector("img");
+      img.onload = () => body.querySelector(".msg").style.display = "none";
+      img.onerror = () => { img.style.display = "none"; body.querySelector(".msg").textContent = "No aerial photo available here"; };
+      img.onclick = () => bigPhoto(p);
+    } else {
+      body.innerHTML = `<div class="msg">Loading Street View…<br><a href="${streetLink(p)}" target="_blank" rel="noopener">Open in Google Maps ↗</a></div><iframe src="${streetEmbed(p)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen title="Street View"></iframe>`;
+    }
+  };
+  box.querySelectorAll("[data-ptab]").forEach(b => b.onclick = ev => { ev.stopPropagation(); show(b.dataset.ptab); });
+  show("street");
+}
+function showSiteMap(p){
+  const src = SM[p.smimg]; if (!src) return;
+  const d = $("#dlg");
+  $("#dlgBody").innerHTML = `<h3 style="margin-bottom:6px">📄 Site map · ${esc(p.name)}</h3>
+    <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <button class="btn" id="smFit">Fit</button><button class="btn" id="smZoom">Zoom in</button>
+      <button class="btn" id="smSave">⬇ Save image</button>
+      ${p.sitemap ? `<a class="btn" href="${esc(p.sitemap)}" target="_blank" rel="noopener">PDF (office network)</a>` : ""}
+    </div>
+    <div id="smBox" style="max-height:72vh;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fafafa;-webkit-overflow-scrolling:touch">
+      <img id="smImg" src="${src}" alt="Site map for ${esc(p.name)}" style="display:block;width:100%;height:auto;cursor:zoom-in"></div>
+    <footer><button class="btn primary" id="smClose">Close</button></footer>`;
+  d.style.maxWidth = "min(980px,96vw)"; d.showModal();
+  const img = $("#smImg"); let z = 1;
+  const setZ = v => { z = v; img.style.width = (100 * z) + "%"; img.style.cursor = z > 1 ? "zoom-out" : "zoom-in"; };
+  $("#smFit").onclick = () => setZ(1); $("#smZoom").onclick = () => setZ(Math.min(z + 1, 4));
+  img.onclick = () => setZ(z > 1 ? 1 : 2.5);
+  $("#smSave").onclick = () => { const a = document.createElement("a"); a.href = src; a.download = "Site map - " + slug(p.name) + ".jpg"; document.body.appendChild(a); a.click(); a.remove(); };
+  $("#smClose").onclick = () => d.close();
+  d.addEventListener("close", () => { d.style.maxWidth = ""; }, {once: true});
+}
+document.addEventListener("click", e => { const a = e.target.closest && e.target.closest("[data-sm]"); if (!a) return;
+  e.preventDefault(); e.stopPropagation(); const f = findPlace(a.dataset.sm); if (f) showSiteMap(f.place); }, true);
+function bigPhoto(p){
+  $("#dlgBody").innerHTML = `<div class="photo-big" style="position:relative"><img alt="Aerial photo" src="${aerialUrl(p, 1200, 700, 140)}"><span style="position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#ea4335;border:2px solid #fff;box-shadow:0 0 0 1px #0006"></span></div>
+    <p style="margin:8px 0 0"><b>${esc(p.name)}</b>${p.address ? " · " + esc(p.address) : ""}</p>
+    <footer><a class="btn" href="${streetLink(p)}" target="_blank" rel="noopener">Street View ↗</a><button class="btn" id="bpClose">Close</button></footer>`;
+  $("#dlg").showModal(); $("#bpClose").onclick = () => $("#dlg").close();
+}
+function renderMap(){
+  layer.clearLayers(); for (const k in markers) delete markers[k];
+  S.lists.forEach(l => {
+    if (ui.openList ? ui.openList !== l.id : !l.visible) return;
+    const dim = ui.openList && ui.openList !== l.id;
+    const pts = [];
+    l.places.forEach((p, i) => {
+      if (!hasLoc(p)) return;
+      pts.push([p.lat, p.lng]);
+      const editable = ui.openList === l.id;
+      const m = L.marker([p.lat, p.lng], {icon: pinIcon(l.color, stopNum(p, i), dim), draggable: editable && ADMIN, zIndexOffset: dim ? 0 : 1000})
+        .bindPopup(() => popupHtml(l, p, i), {minWidth: 260, maxWidth: 320, maxHeight: Math.max(220, map.getSize().y - 40), autoPanPadding: [10, 10]});
+      m.on("click", () => { ui.selPlace = p.id; if (ui.openList !== l.id){ ui.openList = l.id; render({keepMap:false, noFit:true}); setTimeout(() => markers[p.id] && markers[p.id].openPopup(), 50);} else renderSide(); scrollToPlace(p.id); });
+      m.on("dragend", e => { const ll = e.target.getLatLng(); commit(() => { p.lat = +ll.lat.toFixed(6); p.lng = +ll.lng.toFixed(6); }, {noFit: true}); toast("Pin moved"); });
+      m.addTo(layer); markers[p.id] = m;
+    });
+    if (S.showLines && pts.length > 1) L.polyline(pts, {color: l.color, weight: 3, opacity: dim ? .35 : .8, dashArray: "6 6"}).addTo(layer);
+  });
+}
+map.on("popupopen", e => {
+  bindPhoto(e.popup.getElement());
+  L.DomEvent.disableClickPropagation(e.popup.getElement());
+  const a = e.popup.getElement().querySelector("[data-edit]");
+  if (a) a.addEventListener("click", ev => { ev.preventDefault(); const f = findPlace(a.dataset.edit); if (!f) return;
+    ui.openList = f.list.id; ui.selPlace = ui.editPlace = f.place.id; map.closePopup(); render({noFit: true}); scrollToPlace(f.place.id); });
+});
+function fitList(l){
+  const pts = l.places.filter(hasLoc).map(p => [p.lat, p.lng]);
+  if (pts.length === 1) map.setView(pts[0], Math.max(map.getZoom(), 16));
+  else if (pts.length) map.fitBounds(pts, {padding: [40,40], maxZoom: 17});
+}
+function fitAll(){
+  const pts = []; S.lists.forEach(l => l.visible && l.places.forEach(p => hasLoc(p) && pts.push([p.lat,p.lng])));
+  if (pts.length) map.fitBounds(pts, {padding: [40,40], maxZoom: 16});
+}
+
+// ---------- pick-on-map mode ----------
+function startPick(text, cb){ ui.pick = cb; $("#bannerText").textContent = text; document.body.classList.add("pickmode"); }
+function endPick(){ ui.pick = null; document.body.classList.remove("pickmode"); }
+$("#bannerCancel").onclick = endPick;
+map.on("click", e => { if (!ui.pick) return; const cb = ui.pick; endPick(); cb(e.latlng); });
+
+// ---------- geocoding (OpenStreetMap Nominatim, Photon fallback) ----------
+function shortAddr(a, fallback){
+  if (!a) return fallback || "";
+  const line1 = [a.house_number, a.road || a.pedestrian || a.footway].filter(Boolean).join(" ");
+  const city = a.city || a.town || a.village || a.suburb || a.municipality || "";
+  return [line1, city].filter(Boolean).join(", ") || fallback || "";
+}
+async function geocode(q, limit=6){
+  const b = map.getBounds();
+  const vb = [b.getWest(), b.getNorth(), b.getEast(), b.getSouth()].map(n => n.toFixed(4)).join(",");
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=${limit}&viewbox=${vb}&q=${encodeURIComponent(q)}`, {headers: {"Accept-Language": "en"}});
+    if (!r.ok) throw 0;
+    const j = await r.json();
+    return j.map(x => ({name: x.name || (x.display_name||"").split(",")[0], address: shortAddr(x.address, x.display_name), full: x.display_name, lat: +x.lat, lng: +x.lon}));
+  } catch(e){
+    const c = map.getCenter();
+    const r = await fetch(`https://photon.komoot.io/api/?limit=${limit}&lat=${c.lat}&lon=${c.lng}&q=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    return (j.features||[]).map(f => { const p = f.properties; const line1 = [p.housenumber, p.street].filter(Boolean).join(" ");
+      return {name: p.name || line1, address: [line1, p.city].filter(Boolean).join(", "), full: [p.name, line1, p.city, p.state].filter(Boolean).join(", "), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}; });
+  }
+}
+async function reverse(ll){
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${ll.lat}&lon=${ll.lng}`, {headers: {"Accept-Language": "en"}});
+    const j = await r.json(); return shortAddr(j.address, j.display_name);
+  } catch(e){ return ""; }
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ---------- sidebar ----------
+let sortables = [];
+function applyLayout(){
+  const mode = S.layout || "mobile";
+  document.body.classList.toggle("lay-desktop", mode === "desktop");
+  document.body.classList.toggle("lay-mobile", mode === "mobile");
+  // On a phone, "Desktop" shows the full desktop page (like the browser's "Desktop site" option)
+  const small = Math.min(screen.width, screen.height) < 900;
+  $("#vp").setAttribute("content", mode === "desktop" && small ? "width=1280" : "width=device-width, initial-scale=1");
+  document.querySelectorAll("[data-chk]").forEach(c => c.textContent = c.dataset.chk === mode ? "✓" : "");
+  setTimeout(() => map.invalidateSize(), 50);
+}
+function render(opts={}){ renderSide(); renderMap(); $("#mapTitle").value = S.title; document.title = S.title; $("#lineToggle").checked = !!S.showLines; $("#undoBtn").disabled = !undoStack.length; }
+function renderSide(){
+  sortables.forEach(s => s.destroy()); sortables = [];
+  const side = $("#side");
+  const l = ui.openList && getList(ui.openList);
+  if (!l){ ui.openList = null; side.innerHTML = listsView(); bindListsView(); }
+  else { side.innerHTML = detailView(l); bindDetailView(l); }
+  $("#undoBtn").disabled = !undoStack.length;
+}
+function listsView(){
+  const total = S.lists.reduce((n,l) => n + l.places.length, 0);
+  return `<div class="toolbar"><button class="btn primary" id="newList">＋ New list</button><button class="btn" id="fitAll">Show all</button></div>
+  <div class="section-title">Lists · ${S.lists.length} · ${total} places</div>
+  ${S.publishedAt ? `<div class="updated">🕒 Routes last updated ${fmtStamp(S.publishedAt)}</div>` : ""}
+  ${ACCESS && ACCESS.role === "crew" ? `<div class="updated">👤 Signed in as <b>${esc(ACCESS.name)}</b>${ACCESS.offline ? " · offline, showing your saved runs" : ""}</div>` : ""}
+  <div id="lists">${S.lists.map(l => `
+    <div class="list-item" data-id="${l.id}">
+      <span class="handle" title="Drag to reorder">⋮⋮</span>
+      <input type="color" class="swatch" value="${l.color}" data-color="${l.id}" title="List colour">
+      <div class="name" data-open="${l.id}"><b>${esc(l.name)}</b><small>${l.places.length} place${l.places.length===1?"":"s"}${l.visible?"":" · hidden"}</small></div>
+      <button class="icon" data-vis="${l.id}" title="${l.visible?"Hide":"Show"} on map">${l.visible?"👁":"🚫"}</button>
+      <button class="icon" data-open="${l.id}" title="Open">›</button>
+    </div>`).join("")}</div>
+  ${S.lists.length ? "" : `<div class="hint">${ACCESS && ACCESS.role === "crew" ? "No runs are assigned to you yet. The office will add them, and they'll appear here automatically." : "No routes here yet. Open a 📱 route link that was sent to you, or use File → Import."}</div>`}
+  <div class="hint edit-hint" style="margin-top:12px">Drag ⋮⋮ to reorder. Editing a place never changes its position.</div><div class="hint view-only" style="margin-top:12px">👀 View only. Tap a route to see its stops, drive it or share it.</div>`;
+}
+function bindListsView(){
+  $("#newList").onclick = () => { const id = uid(); commit(() => S.lists.push({id, name: "New list", color: COLORS[S.lists.length % COLORS.length], visible: true, places: []})); ui.openList = id; render(); const t = $(".detail-head input.title"); t && (t.focus(), t.select()); };
+  $("#fitAll").onclick = fitAll;
+  $("#side").querySelectorAll("[data-open]").forEach(el => el.onclick = () => { ui.openList = el.dataset.open; ui.selPlace = ui.editPlace = null; ui.results = null; render(); fitList(getList(ui.openList)); });
+  $("#side").querySelectorAll("[data-vis]").forEach(el => el.onclick = () => commit(() => { const l = getList(el.dataset.vis); l.visible = !l.visible; }, {view: true}));
+  $("#side").querySelectorAll("[data-color]").forEach(el => el.onchange = () => commit(() => { getList(el.dataset.color).color = el.value; }));
+  sortables.push(Sortable.create($("#lists"), {disabled: !ADMIN, handle: ".handle", animation: 150, onEnd: e => { if (e.oldIndex === e.newIndex) return; commit(() => { const [x] = S.lists.splice(e.oldIndex, 1); S.lists.splice(e.newIndex, 0, x); }); }}));
+}
+function detailView(l){
+  const others = S.lists.filter(x => x.id !== l.id);
+  return `<div class="detail-head">
+      <button class="icon" id="back" title="All lists">‹</button>
+      <input type="color" class="swatch" id="lColor" value="${l.color}" title="List colour">
+      <input class="title" id="lName" value="${esc(l.name)}" aria-label="List name" ${ADMIN ? "" : "readonly"}>
+    </div>
+    <form class="search" id="searchForm"><input id="q" placeholder="Search an address or place, press Enter" autocomplete="off" value="${esc(ui.q||"")}">
+      ${ui.results ? `<div class="results">${ui.results.length ? ui.results.map((r,i) => `<div data-res="${i}"><b>${esc(r.name)}</b><small>${esc(r.full)}</small></div>`).join("") : `<div style="cursor:default"><small>No matches. Try adding the city, or drop a pin instead.</small></div>`}</div>` : ""}
+    </form>
+    <div class="toolbar">
+      <button class="btn primary" id="drive">🚗 Drive</button>
+      <button class="btn" id="dropPin">📍 Drop pin</button>
+      <button class="btn" id="fit">Zoom to list</button>
+      <button class="btn" id="gmap">🗺️ Google Maps</button>
+      <button class="btn ${l.visible?"":"on"}" id="vis">${l.visible?"Hide":"Show"}</button>
+      <div class="menu" id="listMenu"><button class="btn" id="listMenuBtn">More ▾</button>
+        <div class="menu-pop">
+          <button data-lact="dup">Duplicate list</button>
+          <button data-lact="reverse">Reverse order</button>
+          <button data-lact="offline">⬇ Save map for offline</button>
+          <button data-lact="resetdone">Clear ✓ Done marks</button>
+          <button data-lact="csv">Export this list (CSV)</button>
+          <button data-lact="kml">Export this list (KML)</button>
+          <hr><button data-lact="del" style="color:var(--danger)">Delete list</button>
+        </div></div>
+    </div>
+    <div class="section-title">${l.places.length} place${l.places.length===1?"":"s"} · in your order</div>
+    <div id="runTime"></div>
+    <div id="places">${l.places.map((p,i) => placeCard(l,p,i,others)).join("")}</div>
+    ${l.places.length ? `<div class="hint edit-hint">Drag ⋮⋮ (or use ▲▼) to change order. Drag a pin on the map to move it.</div>` : `<div class="hint">Search above or drop a pin to add the first place.</div>`}`;
+}
+function placeCard(l,p,i,others){
+  const editing = ui.editPlace === p.id, isDone = getDone(l).has(stopNum(p, i));
+  return `<div class="place${ui.selPlace===p.id?" sel":""}${isDone?" done":""}" data-id="${p.id}" id="pl-${p.id}">
+    <div class="place-head">
+      <span class="handle" title="Drag to reorder">⋮⋮</span>
+      <span class="num" style="background:${l.color}">${stopNum(p, i)}</span>
+      <div class="place-body" data-go="${p.id}"><b>${esc(p.name || "Untitled")}</b>${p.address?`<small>${esc(p.address)}</small>`:""}
+        ${noteOf(p) && !editing ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${hasLoc(p) ? "" : `<div class="warn">⚠ No location yet: Edit → Set on map</div>`}${!editing ? smChip(p, `onclick="event.stopPropagation()"`) : ""}${isDone ? `<span class="donechip">✓ Done</span>` : ""}</div>
+      <div class="place-actions">
+        <div class="actcol"><button class="donebtn${isDone ? " on" : ""}" data-done="${p.id}" title="${isDone ? "Mark not done" : "Mark done"}">${isDone ? "✓ Done" : "✓"}</button>${logUrl() ? `<button class="photobtn" data-pphoto="${p.id}" title="Take or upload a photo">📷</button>` : ""}</div>
+        <button class="icon" data-up="${p.id}" title="Move up" ${i===0?"disabled":""}>▲</button>
+        <button class="icon" data-down="${p.id}" title="Move down" ${i===l.places.length-1?"disabled":""}>▼</button>
+        <button class="icon" data-edit="${p.id}" title="Edit">✎</button>
+      </div>
+    </div>
+    ${editing ? `<form class="edit" data-form="${p.id}">
+      <label>Name<input name="name" value="${esc(p.name)}"></label>
+      <label>Address<input name="address" value="${esc(p.address)}"></label>
+      <label>Site map link<input name="sitemap" value="${esc(p.sitemap||"")}" placeholder="Paste a link to the site map (PDF or image)"></label>
+      <label>Notes<textarea name="note" placeholder="e.g. Salt walkway + entrance, gate code…">${esc(noteOf(p))}</textarea></label>
+      <label>Position in list<input name="pos" type="number" min="1" max="${l.places.length}" value="${i+1}"></label>
+      ${others.length ? `<label>Move to list<select name="moveTo"><option value="">— keep in ${esc(l.name)} —</option>${others.map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>` : ""}
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn primary" type="submit">Save</button>
+        <button class="btn" type="button" data-cancel>Cancel</button>
+        <button class="btn" type="button" data-setloc="${p.id}">📍 Set on map</button>
+        <div class="spacer"></div>
+        <button class="btn danger" type="button" data-del="${p.id}">Delete</button>
+      </div></form>` : ""}
+  </div>`;
+}
+function scrollToPlace(id){ const el = document.getElementById("pl-" + id); el && el.scrollIntoView({block: "nearest", behavior: "smooth"}); }
+function addPlace(l, data){
+  const p = {id: uid(), name: data.name || "", address: data.address || "", note: data.note || "", lat: data.lat ?? null, lng: data.lng ?? null};
+  commit(() => l.places.push(p)); ui.selPlace = p.id; renderSide(); scrollToPlace(p.id);
+  if (hasLoc(p)) map.panTo([p.lat, p.lng]);
+  return p;
+}
+function bindDetailView(l){
+  const side = $("#side");
+  $("#back").onclick = () => { ui.openList = null; ui.selPlace = ui.editPlace = null; ui.results = null; ui.q = ""; render(); };
+  $("#lName").onchange = e => commit(() => { l.name = e.target.value.trim() || "Untitled list"; }, {noFit: true});
+  $("#lColor").onchange = e => commit(() => { l.color = e.target.value; });
+  $("#fit").onclick = () => fitList(l);
+  showRunTime(l);
+  $("#gmap").onclick = () => openGoogleRoute(l);
+  $("#drive").onclick = () => driveRun(l);
+  $("#vis").onclick = () => commit(() => { l.visible = !l.visible; }, {view: true});
+  $("#dropPin").onclick = () => startPick("Click the map to add a place to “" + l.name + "”", async ll => {
+    const p = addPlace(l, {name: "", lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6)});
+    ui.editPlace = p.id; renderSide(); scrollToPlace(p.id);
+    const addr = await reverse(ll);
+    if (addr){ p.address = addr; if (!p.name) p.name = addr.split(",")[0]; save(); render({noFit: true}); }
+  });
+  $("#searchForm").onsubmit = async e => {
+    e.preventDefault(); const q = $("#q").value.trim(); ui.q = q; if (!q){ ui.results = null; renderSide(); return; }
+    toast("Searching…");
+    try { ui.results = await geocode(q); } catch(err){ ui.results = []; toast("Search failed. Check your connection."); }
+    renderSide(); const qi = $("#q"); qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length);
+  };
+  side.querySelectorAll("[data-res]").forEach(el => el.onclick = () => {
+    const r = ui.results[+el.dataset.res]; ui.results = null; ui.q = "";
+    addPlace(l, {name: r.name, address: r.address, lat: +r.lat.toFixed(6), lng: +r.lng.toFixed(6)});
+    map.setView([r.lat, r.lng], Math.max(map.getZoom(), 16)); toast("Added to the bottom of " + l.name);
+  });
+  // list menu
+  const lm = $("#listMenu"); $("#listMenuBtn").onclick = ev => { ev.stopPropagation(); lm.classList.toggle("open"); };
+  lm.querySelectorAll("[data-lact]").forEach(b => b.onclick = () => { lm.classList.remove("open"); const a = b.dataset.lact;
+    if (a === "dup"){ const c = JSON.parse(JSON.stringify(l)); c.id = uid(); c.name = l.name + " (copy)"; c.places.forEach(p => p.id = uid()); commit(() => S.lists.splice(S.lists.indexOf(l)+1, 0, c)); ui.openList = c.id; render(); }
+    if (a === "reverse") commit(() => l.places.reverse(), {noFit: true});
+    if (a === "offline") saveOffline(l);
+    if (a === "resetdone"){ setDone(l, new Set()); renderSide(); toast("Done marks cleared"); }
+    if (a === "csv") download(slug(l.name) + ".csv", toCSV([l]), "text/csv");
+    if (a === "kml") download(slug(l.name) + ".kml", toKML([l]), "application/vnd.google-earth.kml+xml");
+    if (a === "del"){ if (!confirm(`Delete “${l.name}” and its ${l.places.length} places? (You can Undo.)`)) return; commit(() => S.lists.splice(S.lists.indexOf(l), 1)); ui.openList = null; render(); toast("List deleted. Undo to restore."); }
+  });
+  // places
+  side.querySelectorAll("[data-go]").forEach(el => el.onclick = () => { const f = findPlace(el.dataset.go); ui.selPlace = f.place.id; renderSide();
+    if (hasLoc(f.place)){ map.setView([f.place.lat, f.place.lng], Math.max(map.getZoom(), 17)); markers[f.place.id] && markers[f.place.id].openPopup(); } });
+  side.querySelectorAll("[data-edit]").forEach(el => el.onclick = () => { ui.editPlace = ui.editPlace === el.dataset.edit ? null : el.dataset.edit; ui.selPlace = el.dataset.edit; renderSide(); scrollToPlace(el.dataset.edit); });
+  const move = (id, d) => { const i = l.places.findIndex(p => p.id === id), j = i + d; if (j < 0 || j >= l.places.length) return; commit(() => { const [x] = l.places.splice(i,1); l.places.splice(j,0,x); }, {noFit: true}); };
+  side.querySelectorAll("[data-done]").forEach(el => el.onclick = ev => { ev.stopPropagation(); const f = findPlace(el.dataset.done); if (!f) return;
+    const on = markDone(f.list, f.place, f.index); renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); });
+  side.querySelectorAll("[data-up]").forEach(el => el.onclick = () => move(el.dataset.up, -1));
+  side.querySelectorAll("[data-down]").forEach(el => el.onclick = () => move(el.dataset.down, 1));
+  side.querySelectorAll("[data-form]").forEach(f => {
+    const pid = f.dataset.form;
+    f.onsubmit = e => { e.preventDefault(); const fd = new FormData(f);
+      commit(() => { const i = l.places.findIndex(p => p.id === pid); const p = l.places[i];
+        p.name = fd.get("name").trim(); p.address = fd.get("address").trim(); p.note = fd.get("note"); delete PRIV[p.id]; p.sitemap = (fd.get("sitemap") || "").trim();
+        const to = fd.get("moveTo");
+        if (to){ l.places.splice(i,1); getList(to).places.push(p); }
+        else { const pos = Math.min(Math.max(parseInt(fd.get("pos"),10) || i+1, 1), l.places.length) - 1;
+          if (pos !== i){ l.places.splice(i,1); l.places.splice(pos,0,p); } }
+      }, {noFit: true});
+      ui.editPlace = null; renderSide(); toast("Saved. Order unchanged unless you moved it."); };
+    f.querySelector("[data-cancel]").onclick = () => { ui.editPlace = null; renderSide(); };
+    f.querySelector("[data-del]").onclick = () => { commit(() => { const i = l.places.findIndex(p => p.id === pid); l.places.splice(i,1); }, {noFit: true}); ui.editPlace = null; renderSide(); toast("Place deleted. Undo to restore."); };
+    f.querySelector("[data-setloc]").onclick = () => startPick("Click the map to set this place's location", ll => {
+      commit(() => { const p = l.places.find(p => p.id === pid); p.lat = +ll.lat.toFixed(6); p.lng = +ll.lng.toFixed(6); }, {noFit: true}); });
+  });
+  sortables.push(Sortable.create($("#places"), {disabled: !ADMIN, handle: ".handle", animation: 150, onEnd: e => { if (e.oldIndex === e.newIndex) return;
+    commit(() => { const [x] = l.places.splice(e.oldIndex,1); l.places.splice(e.newIndex,0,x); }, {noFit: true}); }}));
+}
+
+// ---------- Access codes: crew only ----------
+// Public notes have lockbox/gate/alarm codes and phone numbers replaced with 🔒.
+// The full notes live in routes-private.enc, encrypted with the crew password.
+const SENS_RE = /\b(code|combo|lock ?box|key ?box|intercom|gate|passcode|password|pin|alarm)\b(\s*(?:for\s+gate\s*)?[:#-]?\s*)([A-Z]?\d[\d#]*(?:[\s,\/]+[A-Z]?\d[\d#]*)*)/gi;
+const PHONE_RE = /\(?\b\d{3}\)?[-. ]\d{3}[-. ]\d{4}\b/g;
+const CODEWORD_RE = /\b(code)(:?\s+)(?!for\b|left\b|in\b|to\b|on\b|is\b|at\b|the\b|box\b)([a-z]{3,})\b/gi;
+function redact(t){ return String(t || "").replace(SENS_RE, (m, k, sep) => k + sep + "🔒").replace(PHONE_RE, "🔒 phone").replace(CODEWORD_RE, (m, k, sep) => k + sep + "🔒"); }
+const CREW_SALT = "addcc14353cb7639", CREW_HASH = "b6be9e1ff0fa14a32173b79e33f19e1e2b9be1b679dde4df81f258445e551cd0";
+let PRIV = {}, PRIV_LOADED = false;
+let CREW_PW = "";
+const noteOf = p => (p && PRIV[p.id]) || (p && p.note) || "";
+async function pbkdf(pw, salt, use){
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256"}, base, {name: "AES-GCM", length: 256}, false, [use]);
+}
+async function encPack(obj, pw){
+  const gz = new Uint8Array(await new Response(new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, await pbkdf(pw, salt, "encrypt"), gz));
+  const out = new Uint8Array(34 + ct.length); out.set(new TextEncoder().encode("RMENC1")); out.set(salt, 6); out.set(iv, 22); out.set(ct, 34); return out;
+}
+async function decPack(buf, pw){
+  try {
+    if (new TextDecoder().decode(buf.slice(0, 6)) !== "RMENC1") return null;
+    const plain = await crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(22, 34)}, await pbkdf(pw, buf.slice(6, 22), "decrypt"), buf.slice(34));
+    return JSON.parse(await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
+  } catch(e){ return null; }
+}
+async function crewOk(pw){ try { return (await sha256hex(CREW_SALT + pw)) === CREW_HASH; } catch(e){ return false; } }
+async function loadPriv(pw){
+  if (!window.__FROM_SITE) { PRIV_LOADED = true; return true; }
+  try {
+    const r = await fetch("routes-private.enc", {cache: "no-cache"});
+    if (r.status === 404){ PRIV_LOADED = true; return true; }
+    if (!r.ok) return false;
+    const o = await decPack(new Uint8Array(await r.arrayBuffer()), pw); if (!o) return false;
+    PRIV = o; PRIV_LOADED = true; return true;
+  } catch(e){ return false; }
+}
+function applyCrew(){ document.body.classList.toggle("crew", !!CREW_PW); }
+function crewSignIn(then){
+  $("#dlgBody").innerHTML = `<h3>🔓 Crew sign-in</h3>
+    <p>Shows lockbox, gate and alarm codes and contact numbers, and lets you log completed stops. Use the crew password from the office.</p>
+    <form id="crForm"><input id="crPw" type="password" autocomplete="current-password" placeholder="Crew password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
+    <p id="crErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
+    <footer><button class="btn" type="button" id="crCancel">Cancel</button><button class="btn primary" type="submit">Sign in</button></footer></form>`;
+  const d = $("#dlg"); if (!d.open) d.showModal(); $("#crPw").focus();
+  $("#crCancel").onclick = () => d.close();
+  $("#crForm").onsubmit = async e => {
+    e.preventDefault(); const pw = $("#crPw").value;
+    if (!(await crewOk(pw))){ $("#crErr").textContent = "Wrong password."; $("#crPw").select(); return; }
+    if (!(await loadPriv(pw))){ $("#crErr").textContent = "Couldn't load the codes. Check your connection and try again."; return; }
+    CREW_PW = pw; lsSet("routemaps:crew", pw); d.close(); applyCrew(); render({noFit: true}); flushLog();
+    toast("Crew mode: codes are showing on this device.", 3000); then && then();
+  };
+}
+function crewSignOut(){ CREW_PW = ""; PRIV = {}; PRIV_LOADED = false; try { localStorage.removeItem("routemaps:crew"); } catch(e){} applyCrew(); render({noFit: true}); toast("Signed out of crew mode."); }
+async function initCrew(){
+  if (ACCESS){ CREW_PW = ACCESS.logKey || ""; PRIV_LOADED = true; applyCrew(); flushLog(); return; }
+  const pw = lsGet("routemaps:crew"); if (!pw) return;
+  if (!(await crewOk(pw))){ try { localStorage.removeItem("routemaps:crew"); } catch(e){} return; }
+  CREW_PW = pw; applyCrew();
+  if (await loadPriv(pw)) render({noFit: true});
+}
+// A copy of some lists that is safe to send outside the app (codes hidden).
+const pubLists = lists => lists.map(l => ({...l, places: l.places.map(p => ({...p, note: redact(noteOf(p))}))}));
+
+// ---------- Access: personal links + PINs ----------
+const ACCESS = window.__ACCESS || null;
+const PIN_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const b64e = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
+const b64url = u8 => b64e(u8).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function newPin(){ const r = crypto.getRandomValues(new Uint8Array(8)); let p = ""; r.forEach(x => p += PIN_ABC[x % PIN_ABC.length]); return p; }
+const fmtPin = p => p.slice(0, 4) + "-" + p.slice(4);
+const newKey = () => b64e(crypto.getRandomValues(new Uint8Array(32)));
+async function encRaw(obj, keyB64){
+  const gz = new Uint8Array(await new Response(new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
+  const key = await crypto.subtle.importKey("raw", Uint8Array.from(atob(keyB64), c => c.charCodeAt(0)), "AES-GCM", false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, key, gz));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return b64e(out);
+}
+let ADMIN_KEYS = ACCESS && ACCESS.role === "admin" ? {keys: {...ACCESS.keys}, logKey: ACCESS.logKey, pw: window.__ADMIN_PW} : null;
+let KEYS_DIRTY = false, RESAVE_DRIVERS = false;
+function askAdminPw(why){
+  return new Promise(resolve => {
+    $("#dlgBody").innerHTML = `<h3>🔑 Admin password</h3><p>${esc(why)}</p>
+      <form id="apForm"><input id="apPw" type="password" autocomplete="current-password" placeholder="Admin password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
+      <p id="apErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
+      <footer><button class="btn" type="button" id="apCancel">Cancel</button><button class="btn primary" type="submit">OK</button></footer></form>`;
+    const d = $("#dlg"); if (!d.open) d.showModal(); $("#apPw").focus();
+    $("#apCancel").onclick = () => { d.close(); resolve(null); };
+    $("#apForm").onsubmit = e => { e.preventDefault(); resolve({pw: $("#apPw").value, err: m => { $("#apErr").textContent = m; $("#apPw").select(); }, close: () => d.close()}); };
+  });
+}
+async function getAdminKeys(){
+  if (ADMIN_KEYS && ADMIN_KEYS.pw) return ADMIN_KEYS;
+  let buf;
+  try { const r = await fetch((window.__FROM_SITE ? "" : HOSTED) + "keys.enc", {cache: "no-cache"}); if (!r.ok) throw 0; buf = new Uint8Array(await r.arrayBuffer()); }
+  catch(e){ toast("Couldn't reach the site's key file. Check your connection.", 4000); return null; }
+  for (;;){
+    const a = await askAdminPw("Needed to make personal links and to publish."); if (!a) return null;
+    const o = await decPack(buf, a.pw);
+    if (o){ a.close(); ADMIN_KEYS = {keys: {...o.keys}, logKey: o.logKey, pw: a.pw}; return ADMIN_KEYS; }
+    a.err("Wrong password.");
+  }
+}
+function signOutSite(toAdmin){
+  try { localStorage.removeItem("routemaps:access"); localStorage.removeItem("routemaps:admin"); localStorage.removeItem("routemaps:crew"); } catch(e){}
+  location.hash = toAdmin ? "admin" : ""; location.reload();
+}
+
+// ---------- Publish (admin) ----------
+async function publishSite(){
+  if (!window.__FROM_SITE && !confirmLocalPublish()) return;
+  const ak = await getAdminKeys(); if (!ak) return;
+  toast("Locking the runs…", 2000);
+  const runs = {v: 1, order: [], runs: {}};
+  for (const l of S.lists){
+    if (!ak.keys[l.id]){ ak.keys[l.id] = newKey(); KEYS_DIRTY = true; }
+    const list = JSON.parse(JSON.stringify(l)); list.places = l.places.map(p => ({...p, note: noteOf(p)})); list.visible = true;
+    const sm = {}; l.places.forEach(p => { if (p.smimg && SM[p.smimg]) sm[p.smimg] = SM[p.smimg]; });
+    runs.order.push(l.id); runs.runs[l.id] = await encRaw({list, sm}, ak.keys[l.id]);
+  }
+  const now = Date.now(); S.publishedAt = now; save();
+  const meta = {id: S.id, title: S.title, publishedAt: now, savedAt: now, layout: S.layout, view: S.view, showLines: S.showLines, config: S.config || {}};
+  const files = [["runs.enc", JSON.stringify(runs), "application/json"], ["meta.json", JSON.stringify(meta), "application/json"]];
+  if (KEYS_DIRTY) files.push(["keys.enc", await encPack({keys: ak.keys, logKey: ak.logKey}, ak.pw), "application/octet-stream"]);
+  files.forEach(([n, data, type], i) => setTimeout(() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], {type})); a.download = n; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000); }, i * 700));
+  const names = files.map(f => f[0]);
+  if (KEYS_DIRTY && logUrl()) RESAVE_DRIVERS = true;
+  KEYS_DIRTY = false;
+  $("#dlgBody").innerHTML = `<h3>⬆ Publish to the site</h3>
+    <p>${names.length} files were downloaded: ${names.map(n => `<b>${n}</b>`).join(", ")}.</p>
+    ${RESAVE_DRIVERS ? `<p style="background:#fef7e0;border:1px solid #f9e29c;border-radius:8px;padding:8px 10px"><b>After uploading</b>, tap <b>Update drivers</b> so every driver gets the new locks.</p>` : ""}
+    <ol style="padding-left:20px;line-height:1.6"><li>Open the GitHub upload page.</li><li>Drag in the downloaded files.</li><li>Click <b>Commit changes</b>. Crews see the update within a few minutes.</li></ol>
+    <p style="font-size:14px;color:#6b7385">If Chrome asks to allow multiple downloads, choose Allow.</p>
+    <footer><button class="btn" id="pbClose">Close</button>${RESAVE_DRIVERS ? `<button class="btn" id="pbDrivers">Update drivers</button>` : ""}<a class="btn primary" href="https://github.com/Cowtowski/salt-route-maps/upload/main" target="_blank" rel="noopener">Open GitHub upload ↗</a></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal(); $("#pbClose").onclick = () => d.close();
+  const pd = $("#pbDrivers"); if (pd) pd.onclick = async () => { pd.disabled = true; await resaveDrivers(); RESAVE_DRIVERS = false; d.close(); };
+}
+function confirmLocalPublish(){ return true; }
+
+// Reset everyone's access: new keys for every run (old personal links stop working after you publish)
+function resetAccess(){
+  $("#dlgBody").innerHTML = `<h3>🔄 Reset everyone's access?</h3>
+    <p>Every run gets a new lock. After you publish, <b>all personal links and PINs stop working</b>, and you'll need to send new ones to each driver.</p>
+    <p>Use this if a phone is lost or someone leaves the company.</p>
+    <footer><button class="btn" id="raNo">Cancel</button><button class="btn danger" id="raYes">Reset and publish</button></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal();
+  $("#raNo").onclick = () => d.close();
+  $("#raYes").onclick = async () => { const ak = await getAdminKeys(); if (!ak) return; S.lists.forEach(l => ak.keys[l.id] = newKey()); KEYS_DIRTY = true; RESAVE_DRIVERS = true; publishSite(); };
+}
+
+let SHARE_CTX = null;
+function startShare(){ openDrivers(); }
+// ---------- Drivers (admin): each driver signs in with their own PIN and sees only the runs you assign ----------
+async function apiCall(body, ms = 20000){
+  if (window.__rmApi) return window.__rmApi(body, ms);
+  const url = logUrl(); if (!url) throw new Error("no server");
+  const r = await fetch(url, {method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"}, body: JSON.stringify(body)}); return r.json();
+}
+async function adminApi(action, extra = {}){
+  const ak = await getAdminKeys(); if (!ak) return null;
+  try { return await apiCall({action, admin: ak.pw, ...extra}); } catch(e){ return {ok: false, error: "offline"}; }
+}
+const runName = id => (getList(id) || {}).name || "(run not on the site)";
+const apiErr = j => !j ? "" : j.error === "offline" ? "Couldn't reach your Google Sheet. Check your connection." :
+  j.error === "not admin" ? "The Google Sheet script doesn't have the new admin password yet. Update Code.gs (see instructions)." :
+  j.error === "pin taken" ? "Another driver already uses that PIN." : j.error === "bad pin format" ? "PINs need at least 6 letters or numbers." :
+  /Unknown action|undefined/.test(j.error || "") ? "Your Google Sheet script is out of date. Paste in the new Code.gs and deploy a new version." : (j.error || "Something went wrong.");
+let DRIVERS = [];
+async function openDrivers(){
+  if (!ADMIN) return;
+  if (!logUrl()) return toast("Set up the completion log first (File → ⚙ Settings). Drivers are kept in that Google Sheet.", 5000);
+  $("#dlgBody").innerHTML = `<h3>👥 Drivers</h3><div id="dvBody"><p>Loading…</p></div>
+    <footer><button class="btn" id="dvClose">Close</button><button class="btn primary" id="dvAdd">＋ Add driver</button></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal();
+  $("#dvClose").onclick = () => d.close(); $("#dvAdd").onclick = () => editDriver(null);
+  const j = await adminApi("drivers.list"); if (!$("#dvBody")) return;
+  if (!j || !j.ok){ $("#dvBody").innerHTML = `<p style="color:var(--danger)">${esc(apiErr(j) || "Cancelled.")}</p>`; return; }
+  DRIVERS = j.drivers || [];
+  $("#dvBody").innerHTML = DRIVERS.length ? `<div style="max-height:55vh;overflow:auto">${DRIVERS.map((x, i) => `
+    <div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">${esc(x.name)}</b>
+        <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(x.pin)}</span></div>
+      <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? x.runs.map(id => esc(runName(id))).join(" · ") : "<i>No runs assigned</i>"}</small>
+      <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-dvedit="${i}" style="min-height:36px">✏️ Edit</button>
+        <button class="btn" data-dvsend="${i}" style="min-height:36px">📤 Send sign-in</button>
+        <button class="btn danger" data-dvdel="${i}" style="min-height:36px">🗑 Delete</button></div></div>`).join("")}</div>
+    <p style="font-size:13.5px;color:#6b7385">Changes apply right away. A driver's phone picks them up the next time the app opens, or within 2 minutes.</p>`
+    : `<p>No drivers yet. Tap <b>＋ Add driver</b> to create one with their own PIN.</p>`;
+  $("#dvBody").querySelectorAll("[data-dvedit]").forEach(b => b.onclick = () => editDriver(DRIVERS[+b.dataset.dvedit]));
+  $("#dvBody").querySelectorAll("[data-dvdel]").forEach(b => b.onclick = () => deleteDriver(DRIVERS[+b.dataset.dvdel]));
+  $("#dvBody").querySelectorAll("[data-dvsend]").forEach(b => b.onclick = () => { const x = DRIVERS[+b.dataset.dvsend];
+    SHARE_CTX = {lists: x.runs.map(getList).filter(Boolean), link: HOSTED, pin: x.pin, name: x.name}; openShareDialog(); });
+}
+function editDriver(x){
+  const sel = new Set(x ? x.runs : []);
+  const suggest = () => { const r = crypto.getRandomValues(new Uint8Array(6)); let p = ""; r.forEach(v => p += "0123456789"[v % 10]); return p; };
+  $("#dlgBody").innerHTML = `<h3>${x ? "Edit " + esc(x.name) : "＋ Add driver"}</h3>
+    <label style="display:block;font-weight:600">Name</label>
+    <input id="dvName" value="${esc(x ? x.name : "")}" placeholder="e.g. Caleb" style="width:100%;box-sizing:border-box;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:4px 0 12px">
+    <label style="display:block;font-weight:600">PIN <small style="font-weight:400;color:#6b7385">(at least 6 letters or numbers, their own)</small></label>
+    <div class="row" style="gap:8px;margin:4px 0 12px"><input id="dvPin" value="${esc(x ? x.pin : suggest())}" autocapitalize="characters" spellcheck="false" style="flex:1;box-sizing:border-box;font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;padding:10px 12px;border:1px solid var(--line);border-radius:10px;text-transform:uppercase">
+      <button class="btn" id="dvGen" type="button">🎲 New</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><b>Runs they can see</b><span><a href="#" id="dvAll">All</a> · <a href="#" id="dvNone">None</a></span></div>
+    <div id="dvRuns" style="max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 10px;margin-top:6px">
+      ${S.lists.map(l => `<label style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f2f5;cursor:pointer">
+        <input type="checkbox" value="${l.id}" ${sel.has(l.id) ? "checked" : ""} style="width:20px;height:20px"><span style="width:12px;height:12px;border-radius:50%;background:${l.color}"></span>
+        <span>${esc(l.name)} <small style="color:#6b7385">· ${stopCount(l)} stops</small></span></label>`).join("")}</div>
+    <p id="dvErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
+    <footer><button class="btn" id="dvBack">Back</button><button class="btn primary" id="dvSave">Save</button></footer>`;
+  const boxes = () => [...$("#dvRuns").querySelectorAll("input")];
+  $("#dvAll").onclick = e => { e.preventDefault(); boxes().forEach(b => b.checked = true); };
+  $("#dvNone").onclick = e => { e.preventDefault(); boxes().forEach(b => b.checked = false); };
+  $("#dvGen").onclick = () => { $("#dvPin").value = suggest(); };
+  $("#dvBack").onclick = () => openDrivers();
+  $("#dvName").focus();
+  $("#dvSave").onclick = async () => {
+    const name = $("#dvName").value.trim(), pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, ""), runs = boxes().filter(b => b.checked).map(b => b.value);
+    if (!name) return ($("#dvErr").textContent = "Type the driver's name.");
+    if (pin.length < 6) return ($("#dvErr").textContent = "PINs need at least 6 letters or numbers.");
+    const ak = await getAdminKeys(); if (!ak) return;
+    const missing = runs.filter(id => !ak.keys[id]);
+    if (missing.length) return ($("#dvErr").textContent = `Publish first: ${missing.map(runName).join(", ")} isn't on the site yet.`);
+    const keys = {}; runs.forEach(id => keys[id] = ak.keys[id]);
+    $("#dvSave").disabled = true; $("#dvSave").textContent = "Saving…";
+    const j = await adminApi("drivers.save", {driver: {id: x ? x.id : "", name, pin, runs, runNames: runs.map(runName), keys}});
+    if (!j || !j.ok){ $("#dvSave").disabled = false; $("#dvSave").textContent = "Save"; $("#dvErr").textContent = apiErr(j); return; }
+    toast(`${name} saved. Their phone updates automatically.`, 3000); openDrivers();
+  };
+}
+function deleteDriver(x){
+  $("#dlgBody").innerHTML = `<h3>🗑 Delete ${esc(x.name)}?</h3>
+    <p>${esc(x.name)}'s PIN (<b>${esc(x.pin)}</b>) stops working right away. Their phone loses access the next time the app opens or within 2 minutes.</p>
+    <p style="font-size:14px;color:#6b7385">Their completed stops stay in the spreadsheet.</p>
+    <footer><button class="btn" id="ddNo">Cancel</button><button class="btn danger" id="ddYes">Yes, delete</button></footer>`;
+  $("#ddNo").onclick = () => openDrivers();
+  $("#ddYes").onclick = async () => { $("#ddYes").disabled = true; const j = await adminApi("drivers.delete", {id: x.id});
+    if (!j || !j.ok){ toast(apiErr(j) || "Couldn't delete", 4000); return openDrivers(); }
+    toast(x.name + " deleted"); openDrivers(); };
+}
+// After new keys are published, every driver needs their keys refreshed.
+async function resaveDrivers(){
+  const ak = await getAdminKeys(); if (!ak) return;
+  const j = await adminApi("drivers.list"); if (!j || !j.ok) return toast("Couldn't update drivers: " + apiErr(j), 5000);
+  for (const x of j.drivers || []){ const keys = {}; x.runs.forEach(id => { if (ak.keys[id]) keys[id] = ak.keys[id]; });
+    await adminApi("drivers.save", {driver: {...x, keys}}); }
+  toast("Drivers updated with the new locks", 3000);
+}
+// Drivers: pick up changes the office makes (runs added/removed, PIN changed, driver deleted)
+let RELOAD_AFTER_NAV = false;
+async function refreshAccess(){
+  if (!ACCESS || ACCESS.role !== "crew" || !window.__rmApi || ACCESS.offlineCheck) return;
+  let j; try { j = await window.__rmApi({action: "login", pin: ACCESS.pin}, 10000); } catch(e){ return; }
+  const save = v => { try { v ? localStorage.setItem("routemaps:access", JSON.stringify(v)) : localStorage.removeItem("routemaps:access"); } catch(e){} };
+  if (j && !j.ok && j.error === "bad pin"){ save(null); toast("Your access was changed by the office", 3000); setTimeout(() => location.reload(), 1500); return; }
+  if (!j || !j.ok) return;
+  const nk = j.keys || {}, ok = ACCESS.keys || {};
+  const same = Object.keys(nk).length === Object.keys(ok).length && Object.keys(nk).every(k => nk[k] === ok[k]);
+  save({role: "crew", name: j.name, keys: nk, logKey: j.logKey || "", pin: ACCESS.pin, runs: j.runs || []});
+  if (!same){ if (NAV.on) RELOAD_AFTER_NAV = true; else { toast("The office updated your runs", 2500); setTimeout(() => location.reload(), 1500); } }
+}
+setInterval(refreshAccess, 120000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshAccess(); });
+
+// ---------- Settings (admin) ----------
+const SYNC_BOOKMARKLET = `javascript:(()=>{const s=document.createElement('script');s.charset='utf-8';s.src='${HOSTED}sync.js?'+Date.now();document.body.appendChild(s)})()`;
+function openSettings(){
+  const c = S.config || {};
+  $("#dlgBody").innerHTML = `<h3>⚙ Settings</h3>
+    <label style="display:block;font-weight:600;margin-top:6px">Completion log link (Google Apps Script)</label>
+    <input id="stLog" value="${esc(c.logUrl || "")}" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%;box-sizing:border-box;font-size:15px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-top:4px">
+    <p style="font-size:13.5px;color:#6b7385;margin:6px 0 14px">When set, crews signed in on their phones log each ✓ Done stop and photo to your Google Sheet. Publish after changing it.</p>
+    <label style="display:block;font-weight:600">Sync from the snow database</label>
+    <p style="font-size:14px;margin:4px 0 8px">Drag this button to your bookmarks bar once. Then open the snow database, log in, and click it.</p>
+    <a href="${esc(SYNC_BOOKMARKLET)}" class="btn" style="display:inline-flex;cursor:grab" data-bm="1">⟳ Sync salt routes</a>
+    <div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap"><button class="btn" id="stDrivers">👥 Manage drivers</button>
+    <button class="btn danger" id="stReset">🔄 Reset everyone's access</button></div>
+    <footer><button class="btn" id="stCancel">Cancel</button><button class="btn primary" id="stSave">Save</button></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal();
+  $("#stCancel").onclick = () => d.close();
+  $("#dlgBody [data-bm]").onclick = ev => { ev.preventDefault(); toast("Drag this button up to your bookmarks bar.", 3000); };
+  $("#stReset").onclick = () => resetAccess();
+  $("#stDrivers").onclick = () => openDrivers();
+  $("#stSave").onclick = () => { const v = $("#stLog").value.trim(); commit(() => { S.config = {...(S.config || {}), logUrl: v}; }, {noFit: true}); d.close(); toast(v ? "Saved. Publish so crews get it." : "Saved."); };
+}
+
+// ---------- Completion log ----------
+const LOGQ = "routemaps:logq"; let FLUSHING = false, warnedCrew = false;
+const logUrl = () => (S.config && S.config.logUrl) || "";
+function askDriver(then){
+  const d0 = lsGet("routemaps:driver") || {};
+  $("#dlgBody").innerHTML = `<h3>🚚 Who's driving?</h3><p>Saved on this phone and added to each completed stop.</p>
+    <form id="drForm"><input id="drName" value="${esc(d0.name || "")}" placeholder="Your name" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
+    <input id="drTruck" value="${esc(d0.truck || "")}" placeholder="Truck # (e.g. 208)" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
+    <footer><button class="btn primary" type="submit">Save</button></footer></form>`;
+  const d = $("#dlg"); if (!d.open) d.showModal(); $("#drName").focus();
+  $("#drForm").onsubmit = e => { e.preventDefault(); const name = $("#drName").value.trim(); if (!name) return $("#drName").focus();
+    lsSet("routemaps:driver", {name, truck: $("#drTruck").value.trim()}); d.close(); then && then(); };
+}
+// Phone's real GPS position for the log (never the property's own pin).
+function gpsNow(){
+  if (NAV.pos && Date.now() - (NAV.posT || 0) < 30000) return Promise.resolve(NAV.pos);
+  return new Promise(res => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(q => res({lat: q.coords.latitude, lng: q.coords.longitude, acc: q.coords.accuracy}), () => res(null), {enableHighAccuracy: true, timeout: 10000, maximumAge: 20000});
+  });
+}
+async function logEvent(event, l, p, num, photo, extra = {}){
+  if (!logUrl()) return;
+  if (!CREW_PW){ if (!warnedCrew){ warnedCrew = true; toast("Saved on this phone. Sign in as crew to send it to the office log.", 3500); } return; }
+  const dv = lsGet("routemaps:driver"); if (!dv) return askDriver(() => logEvent(event, l, p, num, photo, extra));
+  const t = extra.t || Date.now();
+  const g = extra.noGps ? null : (extra.pos || await gpsNow());
+  const dist = g && hasLoc(p) ? Math.round(hav([g.lat, g.lng], [p.lat, p.lng])) : "";
+  const e = {id: uid() + uid(), t, event, run: l.name, stop: num, name: p.name, address: p.address || "", driver: dv.name, truck: dv.truck || "",
+    lat: g ? +g.lat.toFixed(6) : "", lng: g ? +g.lng.toFixed(6) : "", acc: g && g.acc ? Math.round(g.acc) : "", dist: extra.dist ?? dist,
+    onsite: extra.onsite || "", photo: photo || ""};
+  const q = lsGet(LOGQ) || []; q.push(e);
+  try { localStorage.setItem(LOGQ, JSON.stringify(q)); } catch(err){ sendLog(e); return; }
+  flushLog();
+}
+async function sendLog(e){
+  await fetch(logUrl(), {method: "POST", mode: "no-cors", headers: {"Content-Type": "text/plain;charset=utf-8"}, body: JSON.stringify({...e, key: CREW_PW})});
+}
+async function flushLog(){
+  if (FLUSHING || !logUrl() || !CREW_PW || navigator.onLine === false) return;
+  let q = lsGet(LOGQ) || []; if (!q.length) return;
+  FLUSHING = true;
+  for (const e of q){ try { await sendLog(e); const rest = (lsGet(LOGQ) || []).filter(x => x.id !== e.id); lsSet(LOGQ, rest); } catch(err){ break; } }
+  FLUSHING = false;
+  const left = (lsGet(LOGQ) || []).length; if (!left && q.length) toast(`Sent ${q.length} update${q.length === 1 ? "" : "s"} to the office log`);
+}
+window.addEventListener("online", flushLog); setInterval(flushLog, 60000);
+function markDone(l, p, i, on){
+  const num = stopNum(p, i), d = getDone(l);
+  if (on === undefined) on = !d.has(num);
+  on ? d.add(num) : d.delete(num); setDone(l, d); if (on) stampDone(l, num);
+  if (on) logEvent("done", l, p, num);
+  return on;
+}
+function takePhoto(l, p, num){
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
+  inp.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0"; document.body.appendChild(inp);
+  setTimeout(() => inp.remove(), 10 * 60000);
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; inp.remove(); if (!f) return;
+    try {
+      const img = await createImageBitmap(f, {imageOrientation: "from-image"}); const k = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      const b64 = c.toDataURL("image/jpeg", .7).split(",")[1];
+      logEvent("photo", l, p, num, b64); toast("📷 Photo saved for stop " + num);
+    } catch(e){ toast("Couldn't read that photo"); }
+  };
+  inp.click();
+}
+
+// ---------- Storm progress ----------
+let progTimer = null;
+async function showProgress(){
+  const hrs = lsGet("routemaps:proghrs") || 12;
+  $("#dlgBody").innerHTML = `<h3>📊 Storm progress</h3>
+    <div class="row" style="gap:8px;align-items:center;margin-bottom:8px"><span>Show the last</span>
+      <select id="pgH" style="font-size:15px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">${[6,12,24,48].map(h => `<option value="${h}" ${h == hrs ? "selected" : ""}>${h} hours</option>`).join("")}</select>
+      <button class="btn" id="pgRefresh">↻</button></div>
+    <div id="pgBody" style="max-height:60vh;overflow:auto"><p>Loading…</p></div>
+    <footer><button class="btn danger" id="pgClear">🧹 Clear</button><button class="btn primary" id="pgClose">Close</button></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal();
+  const stop = () => { clearInterval(progTimer); progTimer = null; };
+  $("#pgClear").onclick = () => { stop(); clearProgress(); };
+  $("#pgClose").onclick = () => { stop(); d.close(); }; d.addEventListener("close", stop, {once: true});
+  $("#pgH").onchange = () => { lsSet("routemaps:proghrs", +$("#pgH").value); loadProgress(); };
+  $("#pgRefresh").onclick = loadProgress;
+  loadProgress(); stop(); progTimer = setInterval(loadProgress, 60000);
+}
+const fmtT = t => new Date(t).toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
+const stormHours = () => lsGet("routemaps:proghrs") || 12;
+// Progress counts from the later of: the time window, or the last "Clear" (this phone or shared by the admin).
+function cutoff(since, rows){
+  let c = Math.max(since, lsGet("routemaps:stormReset") || 0);
+  (rows || []).forEach(r => { if (r.event === "reset" && r.t > c) c = r.t; });
+  return c;
+}
+async function fetchLog(since){
+  if (!logUrl() || !CREW_PW) return null;
+  try { const r = await fetch(logUrl() + "?key=" + encodeURIComponent(CREW_PW) + "&since=" + since); const j = await r.json(); return j.ok ? j.rows : null; } catch(e){ return null; }
+}
+// Stops already serviced on THIS run (this phone + every truck in the log), within the storm window.
+async function serviced(l){
+  const out = new Map(), t = getDoneT(l), d = getDone(l);
+  d.forEach(n => out.set(n, {t: (t[n] && t[n].t) || null, by: (t[n] && t[n].by) || "this phone"}));
+  const rows = await fetchLog(Date.now() - stormHours() * 3600e3), cut = cutoff(Date.now() - stormHours() * 3600e3, rows);
+  (rows || []).filter(r => r.event === "done" && r.run === l.name && r.t >= cut).forEach(r => {
+    const n = String(r.stop), cur = out.get(n), by = r.driver ? r.driver + (r.truck ? " (" + r.truck + ")" : "") : "another truck";
+    if (!cur || !cur.t || r.t > cur.t) out.set(n, {t: r.t, by});
+  });
+  return out;
+}
+function servicedPrompt(l, sv){
+  return new Promise(resolve => {
+    const st = navStops(l), list = st.filter(s => sv.has(s.num));
+    const left = st.filter(s => !sv.has(s.num) && s.target).length;
+    $("#dlgBody").innerHTML = `<h3>⚠ Already serviced on this run</h3>
+      <p><b>${list.length}</b> of ${st.length} stops on <b>${esc(l.name)}</b> are already done:</p>
+      <div style="max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 10px;margin-bottom:8px">${list.map(s => { const v = sv.get(s.num);
+        return `<div style="padding:7px 0;border-bottom:1px solid var(--line)"><b>#${esc(s.num)} ${esc(s.places[0].name)}</b><br><small style="color:#6b7385">✓ ${v.t ? fmtT(v.t) + " · " : ""}${esc(v.by)}</small></div>`; }).join("")}</div>
+      <p style="font-size:14px;color:#6b7385">Only this run counts. The same property on another run isn't affected.</p>
+      <footer style="flex-wrap:wrap"><button class="btn" id="svCancel">Cancel</button><button class="btn" id="svAll">Service all again</button>
+        <button class="btn primary" id="svSkip" ${left ? "" : "disabled"}>${left ? `Skip them · drive ${left} left` : "Nothing left to drive"}</button></footer>`;
+    const dl = $("#dlg"); if (!dl.open) dl.showModal();
+    const done = v => { dl.close(); resolve(v); };
+    $("#svCancel").onclick = () => done("cancel"); $("#svAll").onclick = () => done("all"); $("#svSkip").onclick = () => done("skip");
+  });
+}
+async function driveRun(l){
+  if (!(await askLocation(true))) return;
+  toast("Checking which stops are done…", 1500);
+  const sv = await serviced(l);
+  NAV.sv = sv;
+  if (sv.size){
+    const c = await servicedPrompt(l, sv);
+    if (c === "cancel") return;
+    if (c === "skip"){ const d = getDone(l); sv.forEach((v, n) => { if (!d.has(n)){ d.add(n); stampDone(l, n, v.t || Date.now(), v.by); } }); setDone(l, d); }
+    if (c === "all"){ setDone(l, new Set()); }
+  }
+  startNav(l);
+}
+
+function clearProgress(){
+  const shared = ADMIN && logUrl() && CREW_PW;
+  $("#dlgBody").innerHTML = `<h3>🧹 Clear storm progress?</h3>
+    <p>This starts a fresh count for a new storm:</p>
+    <ul style="padding-left:20px;line-height:1.6;margin:6px 0 10px">
+      <li>Removes every ✓ Done mark on <b>this phone</b>, on all runs.</li>
+      ${shared ? "<li>Resets Storm progress <b>for every truck</b>, counting from now.</li>" : "<li>Storm progress on this phone counts from now. <span style='color:#6b7385'>(Only an admin can reset it for every truck.)</span></li>"}
+      <li><b>Nothing is deleted from the spreadsheet.</b> Every arrival and completion stays on record.</li></ul>
+    <p style="font-weight:600">This can't be undone.</p>
+    <footer><button class="btn" id="cpNo">Cancel</button><button class="btn danger" id="cpYes">Yes, clear progress</button></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal();
+  $("#cpNo").onclick = () => showProgress();
+  $("#cpYes").onclick = () => {
+    const now = Date.now();
+    S.lists.forEach(l => setDone(l, new Set()));
+    lsSet("routemaps:stormReset", now);
+    if (shared) logEvent("reset", {name: "Storm resets"}, {name: "Storm progress cleared", address: ""}, "", "", {t: now, noGps: true});
+    renderSide(); toast(shared ? "Storm progress cleared for everyone" : "Progress cleared on this phone", 3000);
+    showProgress();
+  };
+}
+
+async function loadProgress(){
+  const box = $("#pgBody"); if (!box) return;
+  const since = Date.now() - (+$("#pgH").value) * 3600e3;
+  let rows = null, note = "";
+  if (logUrl() && CREW_PW){ rows = await fetchLog(since); if (!rows) note = "Couldn't reach the log. Showing this phone only."; }
+  else note = logUrl() ? "Sign in as crew to see every truck." : "The completion log isn't set up yet, so this shows this phone only.";
+  const byRun = {}, cut = cutoff(since, rows);
+  if (rows) rows.filter(r => r.t >= cut).forEach(r => { const b = byRun[r.run] = byRun[r.run] || {entries: [], photos: 0};
+    if (r.event === "done") b.entries.push(r); if (r.event === "photo") b.photos++; });
+  const items = S.lists.map(l => {
+    const st = navStops(l); if (!st.length) return "";
+    let entries, photos = 0;
+    if (rows){ const b = byRun[l.name] || {entries: [], photos: 0}; entries = b.entries; photos = b.photos; }
+    else { const t = getDoneT(l); entries = [...getDone(l)].map(n => { const s = st.find(x => x.num === n); return {stop: n, name: s ? s.places[0].name : "", t: t[n] && t[n].t, driver: (t[n] && t[n].by) || ""}; }); }
+    const doneSet = new Set(entries.map(e => String(e.stop)));
+    const n = st.filter(s => doneSet.has(s.num)).length, pct = Math.round(100 * n / st.length);
+    entries = entries.slice().sort((a, b) => (+a.stop || 0) - (+b.stop || 0) || (a.t || 0) - (b.t || 0));
+    const rowsHtml = entries.map(e => `<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid #f0f2f5;font-size:14px">
+        <span style="font-weight:700;min-width:34px">#${esc(e.stop)}</span><span style="flex:1;min-width:0">${esc(e.name || "")}<br>
+        <small style="color:#6b7385">${e.t ? fmtT(e.t) : ""}${e.driver ? " · " + esc(e.driver) + (e.truck ? " (" + esc(e.truck) + ")" : "") : ""}</small></span></div>`).join("");
+    return `<details style="padding:8px 4px;border-bottom:1px solid var(--line)" ${entries.length ? "open" : ""}>
+      <summary style="cursor:pointer;list-style:none">
+        <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:15px">${esc(l.name)}</b><span style="white-space:nowrap;font-weight:700">${n}/${st.length}</span></div>
+        <div style="height:8px;background:#eef1f5;border-radius:6px;margin:6px 0;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct === 100 ? "#188038" : l.color}"></div></div>
+        <small style="color:#6b7385">${entries.length ? entries.length + " done" : "Not started"}${photos ? ` · 📷 ${photos}` : ""}</small></summary>
+      ${rowsHtml}${entries.length ? "" : ""}<div style="margin-top:6px"><button class="btn" data-pgopen="${l.id}" style="min-height:34px;padding:4px 10px;font-size:13px">Open run ›</button></div></details>`;
+  }).join("");
+  const openState = new Set([...box.querySelectorAll("details")].filter(d => d.open).map(d => d.querySelector("[data-pgopen]").dataset.pgopen));
+  const first = !box.querySelector("details");
+  const cutNote = cut > since ? `<p style="font-size:14px;color:#6b7385;margin-top:0">Counting from ${fmtT(cut)}, when progress was last cleared.</p>` : "";
+  box.innerHTML = (note ? `<p style="font-size:14px;color:#6b7385;margin-top:0">${esc(note)}</p>` : "") + cutNote + items +
+    `<p style="font-size:13px;color:#6b7385">Updated ${fmtT(Date.now())}. Refreshes every minute. Photos are in the Google Sheet.</p>`;
+  if (!first) box.querySelectorAll("details").forEach(d => { d.open = openState.has(d.querySelector("[data-pgopen]").dataset.pgopen); });
+  box.querySelectorAll("[data-pgopen]").forEach(el => el.onclick = () => { $("#dlg").close(); ui.openList = el.dataset.pgopen; render(); fitList(getList(ui.openList)); });
+}
+
+// ---------- Routing (two servers, then Google Maps) ----------
+const ROUTERS = ["https://router.project-osrm.org", "https://routing.openstreetmap.de/routed-car"];
+async function osrm(path, ms = 9000){
+  for (const base of ROUTERS){
+    try { const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+      const r = await fetch(base + path, {signal: c.signal}); clearTimeout(t);
+      const j = await r.json(); if (j.code === "Ok" && j.routes && j.routes.length) return j; } catch(e){}
+  }
+  throw new Error("No route");
+}
+// Whole-run drive time, stops in order (cached per route shape)
+const RUNT = lsGet("routemaps:runt") || {};
+async function runTime(l){
+  const st = navStops(l).filter(s => s.target); if (st.length < 2) return null;
+  const key = st.map(s => s.target.lat.toFixed(4) + "," + s.target.lng.toFixed(4)).join(";");
+  if (RUNT[l.id] && RUNT[l.id].key === key) return RUNT[l.id];
+  const j = await osrm(`/route/v1/driving/${st.map(s => s.target.lng + "," + s.target.lat).join(";")}?overview=false`, 15000);
+  const r = {key, dur: j.routes[0].duration, dist: j.routes[0].distance, legs: j.routes[0].legs.map(x => x.duration), nums: st.map(s => s.num)};
+  RUNT[l.id] = r; lsSet("routemaps:runt", RUNT); return r;
+}
+function showRunTime(l){
+  runTime(l).then(r => { const el = $("#runTime"); if (!r || !el || ui.openList !== l.id) return;
+    el.innerHTML = `⏱ About <b>${fmtTime(r.dur)}</b> of driving · ${fmtDist(r.dist)} for ${r.nums.length} stops in order <span style="color:#6b7385">(time on site not included)</span>`; el.style.display = "block"; }).catch(() => {});
+}
+function runLeft(etaToStop){
+  const r = NAV.runt, s = curStop(); if (!r || !s) return null;
+  const k = r.nums.indexOf(s.num); if (k < 0) return null;
+  return etaToStop + r.legs.slice(k).reduce((a, b) => a + b, 0);
+}
+
+// ---------- Offline ----------
+function registerSW(){
+  if (!("serviceWorker" in navigator) || !(location.protocol === "https:" || location.hostname === "localhost") || !window.__FROM_SITE) return;
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+async function saveOffline(l){
+  if (!window.__FROM_SITE || !navigator.serviceWorker || !navigator.serviceWorker.controller) return toast("Offline maps work on the website (cowtowski.github.io). Open it there and try again.", 4500);
+  const pts = l.places.filter(hasLoc); if (!pts.length) return toast("This list has no pins");
+  let s = Math.min(...pts.map(p => p.lat)), n = Math.max(...pts.map(p => p.lat)), w = Math.min(...pts.map(p => p.lng)), e = Math.max(...pts.map(p => p.lng));
+  const pad = .01; s -= pad; n += pad; w -= pad; e += pad;
+  const tx = (lng, z) => Math.floor((lng + 180) / 360 * 2 ** z);
+  const ty = (lat, z) => Math.floor((1 - Math.log(Math.tan(toRad(lat)) + 1 / Math.cos(toRad(lat))) / Math.PI) / 2 * 2 ** z);
+  const tiles = [];
+  for (let z = 10; z <= 16; z++){
+    const x0 = tx(w, z), x1 = tx(e, z), y0 = ty(n, z), y1 = ty(s, z), cnt = (x1 - x0 + 1) * (y1 - y0 + 1);
+    if (tiles.length + cnt > 1500) break;
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) tiles.push(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`);
+  }
+  let done = 0; toast(`Saving ${tiles.length} map tiles for offline…`, 3000);
+  const work = async () => { while (tiles.length){ const u = tiles.pop(); try { await fetch(u, {mode: "cors"}); } catch(e){} done++; if (done % 100 === 0) toast(`Saving map for offline… ${done}`, 1500); } };
+  await Promise.all([work(), work(), work(), work()]);
+  toast(`✓ ${l.name} saved for offline use (${done} map tiles).`, 4000);
+}
+
+// ---------- Last updated ----------
+const fmtStamp = t => new Date(t).toLocaleString([], {month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit"});
+
+function adminSignIn(){
+  $("#dlgBody").innerHTML = `<h3>🔑 Admin sign-in</h3>
+    <p>Admins can change routes, pins and info on this device. Everyone else can view, drive and share only.</p>
+    <form id="adForm"><input id="adPw" type="password" autocomplete="current-password" placeholder="Admin password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
+    <p id="adErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
+    <footer><button class="btn" type="button" id="adCancel">Cancel</button><button class="btn primary" type="submit">Sign in</button></footer></form>`;
+  const d = $("#dlg"); if (!d.open) d.showModal(); $("#adPw").focus();
+  $("#adCancel").onclick = () => d.close();
+  $("#adForm").onsubmit = async e => {
+    e.preventDefault();
+    let h = ""; try { h = await sha256hex(ADMIN_SALT + $("#adPw").value); } catch(err){}
+    if (h !== ADMIN_HASH){ $("#adErr").textContent = "Wrong password."; $("#adPw").select(); return; }
+    ADMIN = true; lsSet("routemaps:admin", ADMIN_HASH); d.close(); applyRole(); render({noFit: true});
+    toast("Admin mode: you can edit. Use File → Publish to update the site.", 4000);
+  };
+}
+
+// ---------- header ----------
+$("#mapTitle").onchange = e => commit(() => { S.title = e.target.value.trim() || "Route Maps"; });
+$("#undoBtn").onclick = undo;
+function setMapHidden(h){
+  document.body.classList.toggle("mapcollapsed", h); lsSet("routemaps:mapHidden", h);
+  $("#mapToggleTxt").textContent = h ? "Show map" : "Hide map"; $("#mapToggle").classList.toggle("on", h);
+  if (!h) setTimeout(() => map.invalidateSize(), 60);
+}
+$("#mapToggle").onclick = () => setMapHidden(!document.body.classList.contains("mapcollapsed"));
+setMapHidden(!!lsGet("routemaps:mapHidden"));
+$("#lineToggle").onchange = e => commit(() => { S.showLines = e.target.checked; }, {view: true});
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); undo(); }
+  if (e.key === "Escape" && ui.pick) endPick();
+});
+const fm = $("#fileMenu");
+$("#fileBtn").onclick = e => { e.stopPropagation(); fm.classList.toggle("open"); };
+document.addEventListener("click", () => document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open")));
+fm.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { fm.classList.remove("open"); const a = b.dataset.act; const vis = S.lists;
+  if (a === "import") $("#fileInput").click();
+  if (a === "exp-kml") download(slug(S.title) + ".kml", toKML(vis), "application/vnd.google-earth.kml+xml");
+  if (a === "exp-csv") download(slug(S.title) + ".csv", toCSV(vis), "text/csv");
+  if (a === "exp-geojson") download(slug(S.title) + ".geojson", JSON.stringify(toGeoJSON(vis), null, 1), "application/geo+json");
+  if (a === "exp-json") download(slug(S.title) + "-backup.json", JSON.stringify(S, null, 1), "application/json");
+  if (a === "print") window.print();
+  if (a === "admin-in"){ if (window.__FROM_SITE) signOutSite(true); else adminSignIn(); }
+  if (a === "signout") signOutSite(false);
+  if (a === "admin-out" && window.__FROM_SITE) return signOutSite(false);
+  if (a === "admin-out"){ ADMIN = false; try { localStorage.removeItem("routemaps:admin"); } catch(e){} undoStack = []; applyRole(); render(); toast("Signed out. View only."); }
+  if (a === "publish") publishSite();
+  if (a === "settings") openSettings();
+  if (a === "crew-in") crewSignIn();
+  if (a === "crew-out") crewSignOut();
+  if (a === "progress") showProgress();
+  if (a.startsWith("lay-")){ const mode = a.slice(4); commit(() => { S.layout = mode; }, {view: true}); applyLayout(); toast(mode === "auto" ? "Layout: fits the screen" : "Layout: " + mode + " (this file opens this way)"); }
+});
+
+// ---------- export ----------
+const slug = s => (s || "map").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || "map";
+function download(name, text, type){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast("Downloaded " + name);
+}
+const csvCell = v => { v = String(v ?? ""); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+function toCSV(lists){
+  const rows = [["List","Order","Name","Address","Notes","Latitude","Longitude","Site map"]];
+  lists.forEach(l => l.places.forEach((p,i) => rows.push([l.name, i+1, p.name, p.address, p.note, p.lat ?? "", p.lng ?? "", p.sitemap || ""])));
+  return rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+}
+function toGeoJSON(lists){
+  return {type: "FeatureCollection", features: lists.flatMap(l => l.places.filter(hasLoc).map((p,i) => ({type: "Feature",
+    geometry: {type: "Point", coordinates: [p.lng, p.lat]},
+    properties: {list: l.name, order: l.places.indexOf(p)+1, name: p.name, address: p.address, note: p.note, color: l.color}})))};
+}
+const xesc = s => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function toKML(lists){
+  const kcol = hex => { const h = hex.replace("#",""); return "ff" + h.slice(4,6) + h.slice(2,4) + h.slice(0,2); };
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${xesc(S.title)}</name>\n` +
+    lists.map(l => `<Style id="s${l.id}"><IconStyle><color>${kcol(l.color)}</color></IconStyle></Style>\n<Folder><name>${xesc(l.name)}</name>\n` +
+      l.places.map((p,i) => hasLoc(p) ? `<Placemark><name>${xesc((i+1) + ". " + (p.name || "Untitled"))}</name><description>${xesc([p.address, p.note].filter(Boolean).join("\n"))}</description><styleUrl>#s${l.id}</styleUrl><Point><coordinates>${p.lng},${p.lat},0</coordinates></Point></Placemark>` : "").join("\n") +
+      `\n</Folder>`).join("\n") + `\n</Document></kml>`;
+}
+
+// ---------- import ----------
+$("#fileInput").onchange = async e => { const files = [...e.target.files]; e.target.value = ""; for (const f of files) await importFile(f); };
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", async e => { e.preventDefault(); for (const f of e.dataTransfer.files) await importFile(f); });
+
+function parseCSV(text){
+  const rows = []; let row = [], cell = "", q = false;
+  text = text.replace(/^﻿/, "");
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ","){ row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r"){ if (c === "\r" && text[i+1] === "\n") i++; row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell !== "" || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ""));
+}
+function coordsFromUrl(u){
+  if (!u) return null;
+  let m = u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || u.match(/[?&](?:q|query|destination)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  return m ? {lat: +m[1], lng: +m[2]} : null;
+}
+async function importFile(f){
+  const text = await f.text(); const base = f.name.replace(/\.[^.]+$/, "");
+  let lists = [];
+  try {
+    if (/\.kml$/i.test(f.name) || /^\s*<\?xml|<kml/i.test(text)) lists = fromKML(text, base);
+    else if (/^\s*[\[{]/.test(text)){
+      const j = JSON.parse(text);
+      if (j.lists) lists = normalize(j).lists;
+      else if (j.type === "FeatureCollection") lists = fromGeoJSON(j, base);
+      else throw new Error("Unrecognised JSON");
+    } else lists = fromCSV(text, base);
+  } catch(err){ toast("Couldn't read " + f.name + ": " + err.message); return; }
+  if (!lists.length){ toast("No places found in " + f.name); return; }
+  lists.forEach((l,i) => { l.id = uid(); l.color = l.color || COLORS[(S.lists.length + i) % COLORS.length]; l.visible = true; l.places.forEach(p => p.id = uid()); });
+  commit(() => S.lists.push(...lists));
+  const n = lists.reduce((a,l) => a + l.places.length, 0);
+  toast(`Imported ${n} places into ${lists.length} list${lists.length>1?"s":""}`);
+  ui.openList = lists.length === 1 ? lists[0].id : null; render(); lists.length === 1 ? fitList(lists[0]) : fitAll();
+  await geocodeMissing(lists);
+}
+function fromCSV(text, base){
+  const rows = parseCSV(text); if (rows.length < 2) return [];
+  const H = rows[0].map(h => h.trim().toLowerCase());
+  const col = (...names) => H.findIndex(h => names.includes(h));
+  const ci = {list: col("list","layer","route","folder"), order: col("order","#","stop","seq","sequence"), name: col("name","title","place","location name"),
+    addr: col("address","street","full address","location"), note: col("note","notes","comment","comments","description"),
+    url: col("url","link","google maps url"), sm: col("site map","sitemap","site map link"), lat: col("lat","latitude","y"), lng: col("lng","lon","long","longitude","x")};
+  const byList = new Map();
+  rows.slice(1).forEach(r => {
+    const g = k => ci[k] > -1 ? (r[ci[k]] || "").trim() : "";
+    const ln = g("list") || base;
+    if (!byList.has(ln)) byList.set(ln, []);
+    let lat = parseFloat(g("lat")), lng = parseFloat(g("lng"));
+    if (isNaN(lat) || isNaN(lng)){ const c = coordsFromUrl(g("url")); lat = c ? c.lat : null; lng = c ? c.lng : null; }
+    const note = [g("note"), ci.note !== H.indexOf("comment") && H.includes("comment") ? r[H.indexOf("comment")] : ""].filter(Boolean).join("\n");
+    byList.get(ln).push({order: parseFloat(g("order")), p: {name: g("name") || g("addr"), address: g("addr"), note, lat, lng, _url: g("url"), sitemap: g("sm")}});
+  });
+  return [...byList].map(([name, arr]) => { if (arr.every(x => !isNaN(x.order))) arr.sort((a,b) => a.order - b.order); return {name, places: arr.map(x => x.p)}; });
+}
+function fromGeoJSON(j, base){
+  const byList = new Map();
+  (j.features || []).forEach(f => { if (!f.geometry || f.geometry.type !== "Point") return; const pr = f.properties || {};
+    const ln = pr.list || base; if (!byList.has(ln)) byList.set(ln, {color: pr.color, items: []});
+    byList.get(ln).items.push({order: +pr.order, p: {name: pr.name || pr.Name || pr.title || "", address: pr.address || "", note: pr.note || pr.description || "", lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}}); });
+  return [...byList].map(([name, v]) => { if (v.items.every(x => !isNaN(x.order))) v.items.sort((a,b) => a.order - b.order); return {name, color: v.color, places: v.items.map(x => x.p)}; });
+}
+function fromKML(text, base){
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  const txt = (el, tag) => { const n = el.getElementsByTagName(tag)[0]; return n ? n.textContent.trim() : ""; };
+  const lists = [];
+  const toPlace = pm => { const c = txt(pm, "coordinates").split(/[\s]+/)[0].split(",");
+    const name = txt(pm, "name").replace(/^\d+\.\s+/, "");
+    const desc = txt(pm, "description").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+    return {name, address: txt(pm, "address"), note: desc, lat: c.length > 1 ? +c[1] : null, lng: c.length > 1 ? +c[0] : null}; };
+  const folders = [...doc.getElementsByTagName("Folder")].filter(f => [...f.children].some(ch => ch.tagName === "Placemark"));
+  folders.forEach(f => lists.push({name: [...f.children].find(c => c.tagName === "name")?.textContent.trim() || base,
+    places: [...f.children].filter(c => c.tagName === "Placemark").map(toPlace)}));
+  const loose = [...doc.getElementsByTagName("Placemark")].filter(pm => pm.parentElement.tagName !== "Folder");
+  if (loose.length) lists.push({name: base, places: loose.map(toPlace)});
+  return lists;
+}
+async function geocodeMissing(lists){
+  const todo = []; lists.forEach(l => l.places.forEach(p => { if (!hasLoc(p) && (p.address || p.name)) todo.push(p); }));
+  if (!todo.length) return;
+  let ok = 0;
+  for (let i = 0; i < todo.length; i++){
+    const p = todo[i]; toast(`Finding locations… ${i+1} / ${todo.length}`, 2500);
+    try { const r = await geocode(p.address || p.name, 1); if (r[0]){ p.lat = +r[0].lat.toFixed(6); p.lng = +r[0].lng.toFixed(6); if (!p.address) p.address = r[0].address; ok++; } } catch(e){}
+    if (i % 5 === 4){ save(); renderMap(); }
+    await sleep(1100); // Nominatim allows ~1 request per second
+  }
+  lists.forEach(l => l.places.forEach(p => delete p._url));
+  save(); render();
+  toast(`Located ${ok} of ${todo.length}. ${todo.length - ok ? "Use Edit → Set on map for the rest." : ""}`, 5000);
+}
+
+// ---------- share ----------
+function buildSelfFile(){
+  const data = JSON.stringify({...S, lists: pubLists(S.lists)}).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, c => "\\u" + c.charCodeAt(0).toString(16));
+  return SOURCE.replace(/\/\*DATA_START\*\/[\s\S]*?\/\*DATA_END\*\//, () => "/*DATA_START*/" + data + "/*DATA_END*/");
+}
+async function linkFor(lists){
+  const sub = {id: "link-" + lists.map(l => l.id).join("-").slice(0, 40), title: lists.length === 1 ? lists[0].name : S.title, savedAt: Date.now(),
+    showLines: true, layout: S.layout, view: S.view,
+    lists: lists.map(l => ({id: l.id, name: l.name, color: l.color, visible: true,
+      places: l.places.map(p => ({id: p.id, name: p.name, address: p.address, note: redact(noteOf(p)), lat: p.lat, lng: p.lng}))}))};
+  const bytes = new TextEncoder().encode(JSON.stringify(sub));
+  const cs = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+  const buf = new Uint8Array(await new Response(cs).arrayBuffer());
+  let bin = ""; buf.forEach(b => bin += String.fromCharCode(b));
+  return HOSTED + "#map=" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+async function makeLink(){
+  const bytes = new TextEncoder().encode(JSON.stringify(S));
+  const cs = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+  const buf = new Uint8Array(await new Response(cs).arrayBuffer());
+  let bin = ""; buf.forEach(b => bin += String.fromCharCode(b));
+  return location.href.split("#")[0] + "#map=" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function routeLinks(places){
+  // Google Maps directions links, max 10 stops each (origin + 8 waypoints + destination)
+  const pts = places.filter(hasLoc), out = [];
+  for (let i = 0; i < pts.length; i += 9){
+    const seg = pts.slice(i, i + 10); if (seg.length < 2 && i > 0) break;
+    const c = p => p.lat + "," + p.lng;
+    if (seg.length === 1){ out.push({from: i+1, to: i+1, url: `https://www.google.com/maps/search/?api=1&query=${c(seg[0])}`}); break; }
+    let u = `https://www.google.com/maps/dir/?api=1&origin=${c(seg[0])}&destination=${c(seg[seg.length-1])}&travelmode=driving`;
+    if (seg.length > 2) u += "&waypoints=" + seg.slice(1, -1).map(c).join("%7C");
+    out.push({from: i+1, to: i+seg.length, url: u});
+  }
+  return out;
+}
+function stopCount(l){ const n = new Set(l.places.map((p, i) => stopNum(p, i))); return n.size; }
+function shareText(lists, perStop, routes){
+  const parts = []; lists = pubLists(lists);
+  lists.forEach(l => {
+    const sc = stopCount(l);
+    const lines = [`📍 ${l.name} (${sc} stop${sc===1?"":"s"})`];
+    l.places.forEach((p, i) => {
+      const hasNum = /^#\s*\d+/.test(p.note || "");
+      let s = hasNum ? `${p.name || "Untitled"}` : `${i+1}. ${p.name || "Untitled"}`;
+      if (p.address && p.address !== p.name) s += ` | ${p.address}`;
+      if (p.note) s = hasNum ? `${p.note.replace(/\n+/g, " / ")}\n   ${s}` : s + `\n   ${p.note.replace(/\n+/g, " / ")}`;
+      if (perStop && hasLoc(p)) s += `\n   https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
+      if (p.smimg && SM[p.smimg]) s += `\n   Site map: in the map file (tap 📄 Site map)`;
+      else if (p.sitemap) s += `\n   Site map: ${p.sitemap}`;
+      lines.push(s);
+    });
+    if (routes){
+      const rl = routeLinks(l.places);
+      if (rl.length) lines.push("", rl.length === 1 ? "Route in Google Maps:" : "Route in Google Maps (in parts, 10 pins max per link):",
+        ...rl.map(r => (rl.length > 1 ? `Pins ${r.from}-${r.to}: ` : "") + r.url));
+    }
+    parts.push(lines.join("\n"));
+  });
+  return parts.join("\n\n");
+}
+function routeFile(lists){
+  // A stand-alone copy of the app holding only these routes
+  const sub = JSON.parse(JSON.stringify(S));
+  sub.lists = JSON.parse(JSON.stringify(pubLists(lists)));
+  sub.lists.forEach(l => l.visible = true);
+  sub.id = "share-" + lists.map(l => l.id).join("-").slice(0, 40);
+  sub.title = lists.length === 1 ? lists[0].name : S.title;
+  sub.savedAt = Date.now();
+  sub.showLines = true;
+  const data = JSON.stringify(sub).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, c => "\\u" + c.charCodeAt(0).toString(16));
+  const used = {}; sub.lists.forEach(l => l.places.forEach(p => { if (p.smimg && SM[p.smimg]) used[p.smimg] = SM[p.smimg]; }));
+  const smData = Object.keys(used).length ? JSON.stringify(used) : "null";
+  const html = SOURCE.replace(/\/\*DATA_START\*\/[\s\S]*?\/\*DATA_END\*\//, () => "/*DATA_START*/" + data + "/*DATA_END*/")
+                     .replace(/\/\*SM_START\*\/[\s\S]*?\/\*SM_END\*\//, () => "/*SM_START*/" + smData + "/*SM_END*/");
+  return {name: slug(sub.title) + ".html", html};
+}
+function openGoogleRoute(l){
+  const rl = routeLinks(l.places);
+  if (!rl.length) return toast("This route has no mapped stops");
+  if (rl.length === 1){ window.open(rl[0].url, "_blank", "noopener"); return; }
+  $("#dlgBody").innerHTML = `<h3>Open “${esc(l.name)}” in Google Maps</h3>
+    <p>Google Maps takes up to 10 pins per route, so this route opens in ${rl.length} parts:</p>
+    <div class="opts">${rl.map(r => `<a class="opt" href="${r.url}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span style="font-size:20px">🗺️</span><span><b>Pins ${r.from}–${r.to}</b><small>Opens in Google Maps</small></span></a>`).join("")}</div>
+    <footer><button class="btn" id="gmClose">Close</button></footer>`;
+  $("#dlg").showModal(); $("#gmClose").onclick = () => $("#dlg").close();
+}
+$("#shareBtn").onclick = () => startShare();
+$("#driversBtn").onclick = () => openDrivers();
+function openShareDialog(){
+  const C = SHARE_CTX;
+  const web = /^https?:/.test(location.protocol);
+  const cur = ui.openList && getList(ui.openList);
+  let canShareFiles = false;
+  try { canShareFiles = !!(navigator.canShare && navigator.canShare({files: [new File(["x"], "t.html", {type: "text/html"})]})); } catch(e){}
+  const isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const opt = {...(lsGet("routemaps:shareopts") || {gmaps: true, list: false, stops: false}), file: false, link: true};
+  $("#dlgBody").innerHTML = `<h3>Send to ${esc(C.name)}</h3>
+    <div class="pinbox"><div style="font-size:14px">${esc(C.name)}'s PIN</div><div class="pin">${esc(C.pin)}</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="shCopyPin" style="min-height:36px">Copy PIN</button>
+</div>
+      <small style="color:#3c4352;display:block;margin-top:6px">The PIN is included in the message. Runs right now: ${C.lists.map(l => esc(l.name)).join(", ") || "none"}.</small></div>
+    <label style="display:none">Route
+      <select id="shScope"><option value="ctx">ctx</option></select></label>
+    <div class="section-title">Include</div>
+    <div style="display:grid;gap:6px">
+      <label class="opt" style="cursor:pointer"><input type="checkbox" id="inLink" checked disabled><span><b>🔑 Sign-in instructions</b><small>The app's web address and how to sign in with their PIN. They'll always see the runs you assign, even after you change them.</small></span></label>
+      <label class="opt" style="cursor:pointer"><input type="checkbox" id="inFile" ${opt.file?"checked":""}><span><b>📄 Map file (.html)</b><small>A copy of these runs as a file (access codes hidden). <b>No PIN needed</b>: anyone with the file can open it.</small></span></label>
+      <label class="opt" style="cursor:pointer"><input type="checkbox" id="inG" ${opt.gmaps?"checked":""}><span><b>🗺️ Google Maps route link</b><small>Opens the stops in order in the Google Maps app (up to 10 pins per link).</small></span></label>
+      <label class="opt" style="cursor:pointer"><input type="checkbox" id="inList" ${opt.list?"checked":""}><span><b>📝 Stop list</b><small>Numbered stops with addresses and notes, written into the message. <label style="display:inline"><input type="checkbox" id="inStops" ${opt.stops?"checked":""}> add a map link for each stop</label></small></span></label>
+    </div>
+    <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:13px">Preview / edit message</summary>
+      <textarea id="shText" style="width:100%;height:150px;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:8px;font:12.5px/1.4 ui-monospace,Consolas,monospace" spellcheck="false"></textarea>
+      <small id="shCount" style="color:var(--muted)"></small>
+    </details>
+    <div class="section-title">Send with</div>
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      ${canShareFiles ? `<button class="btn primary" id="shNative">📤 Share…</button>` : ""}
+      <button class="btn" id="shWa" style="background:#25d366;border-color:#25d366;color:#fff">WhatsApp</button>
+      <button class="btn" id="shGmail" style="background:#ea4335;border-color:#ea4335;color:#fff">Gmail</button>
+      <button class="btn" id="shMail">✉️ Email app</button>
+      <button class="btn" id="shSms">💬 SMS</button>
+      <button class="btn" id="shCopy">Copy text</button>
+      <button class="btn" id="shDl">⬇ Map file only</button>
+    </div>
+    <p id="shHint" style="font-size:12.5px;color:#6b7385;margin-top:10px"></p>
+    <details><summary style="cursor:pointer;color:var(--muted);font-size:13px">More: whole map, KML, copy link</summary>
+      <div class="opts" style="margin-top:6px">
+        <button class="opt" id="shFile"><span style="font-size:20px">🗂️</span><span><b>Download full map file</b><small>Every route in one file, for someone who needs them all.</small></span></button>
+        <button class="opt" id="shLink"><span style="font-size:20px">🔗</span><span><b>Copy phone link</b><small>Copies the web link for the route(s) picked above.</small></span></button>
+        <button class="opt" id="shKml"><span style="font-size:20px">🌍</span><span><b>Export KML</b><small>For Google Earth or Google My Maps.</small></span></button>
+      </div></details>
+    <footer><button class="btn" id="shClose">Close</button></footer>`;
+  const d = $("#dlg"); d.showModal();
+  const ta = $("#shText"); let edited = false;
+  const lists = () => C.lists;
+  const title = () => { const ls = lists(); return ls.length === 1 ? ls[0].name : S.title; };
+  const inc = () => ({file: $("#inFile").checked, link: $("#inLink").checked, gmaps: $("#inG").checked, list: $("#inList").checked, stops: $("#inStops").checked});
+  let linkText = "";
+  const build = () => {
+    const o = inc(), ls = lists(), parts = [];
+    if (o.link && linkText) parts.push(linkText);
+    if (o.list) parts.push(shareText(ls, o.stops, false));
+    else parts.push(ls.map(l => { const sc = stopCount(l); return `📍 ${l.name} (${sc} stop${sc===1?"":"s"})`; }).join("\n"));
+    if (o.gmaps) ls.forEach(l => { const rl = routeLinks(l.places); if (rl.length) parts.push((ls.length > 1 ? l.name + "\n" : "") + (rl.length === 1 ? "Open in Google Maps:\n" : "Open in Google Maps (in parts, 10 pins max per link):\n") + rl.map(r => (rl.length > 1 ? `Pins ${r.from}-${r.to}: ` : "") + r.url).join("\n")); });
+    return parts.join("\n\n");
+  };
+  const makeLinkText = async () => { linkText = "";
+    if (!inc().link) return;
+    linkText = `🔑 ${C.name}, here's the salt route app. Open this on your phone:\n${C.link}\nSign in with your PIN: ${C.pin}\nYou'll see the runs the office assigns you, and they update automatically.`; };
+  const refresh = async (relink) => { if (relink) { await makeLinkText(); }
+    lsSet("routemaps:shareopts", inc()); if (!edited) ta.value = build(); const n = ta.value.length;
+    $("#shCount").textContent = n + " characters" + (n > 1800 ? " · long: some email apps cut it off, so use Copy text or Share…" : "");
+    $("#shHint").textContent = inc().file
+      ? (canShareFiles ? (isPhone ? "Every button opens your phone’s share menu with the map file already attached. Pick the app and send."
+                                         : "WhatsApp, Email, SMS and Share… open your computer’s share menu with the map file already attached. Gmail in the browser can’t receive files, so for Gmail the file downloads and you attach it with 📎.")
+                       : "This browser can’t attach files for you: the map file downloads and you attach it with 📎 before sending. (Chrome on Windows/Android and Safari on iPhone can attach it automatically.)")
+      : "Only the message text is sent. Turn on Map file to send a copy they can open as a map."; };
+  ["inFile","inLink","inG","inList","inStops"].forEach(id => $("#" + id).onchange = () => { refresh(id === "inLink" || id === "inPin"); });
+  $("#shCopyPin").onclick = async () => { try { await navigator.clipboard.writeText(C.pin); toast("PIN copied"); } catch(e){ toast("Couldn't copy here"); } };
+  ta.oninput = () => { edited = true; refresh(); };
+  refresh(true);
+  const enc = s => encodeURIComponent(s);
+  const dlFile = () => { const f = routeFile(lists()); download(f.name, f.html, "text/html"); return f.name; };
+  const shareWithFile = async (app) => {
+    // Hands the map file + message to the device's share menu; the chosen app gets the file already attached.
+    const f = routeFile(lists());
+    const data = {title: title(), text: ta.value + `\n\n🗺️ Attached: ${f.name}. Save it, then open it in a web browser (Chrome/Safari) to see the route on a map.`,
+                  files: [new File([f.html], f.name, {type: "text/html"})]};
+    try { await navigator.share(data); d.close(); toast("Sent to the share menu with the map file attached"); return true; }
+    catch(e){ if (e.name === "AbortError") return true; return false; }
+  };
+  const viaLink = async (url, app) => {
+    if (inc().file && canShareFiles && (app !== "Gmail" || isPhone)){
+      toast(`Choose ${app === "your email app" ? "your email app" : app === "your messages app" ? "Messages" : app} in the share menu. The map file is already attached.`, 6000);
+      if (await shareWithFile(app)) return;
+    }
+    let n = null;
+    if (url.startsWith("http")){ window.open(url, "_blank", "noopener"); if (inc().file) n = dlFile(); }
+    else { if (inc().file) n = dlFile(); setTimeout(() => { location.href = url; }, n ? 700 : 0); }
+    if (n) showAttachSteps(n, app);
+  };
+  const showAttachSteps = (n, app) => {
+    $("#dlgBody").innerHTML = `<h3>One more step: attach the map file</h3>
+      <p>${esc(app)} can't take the file automatically, so it was saved to your <b>Downloads</b> folder:</p>
+      <p style="font:13px ui-monospace,Consolas,monospace;background:#f3f5f9;padding:8px;border-radius:6px;word-break:break-all">${esc(n)}</p>
+      <ol style="padding-left:18px;color:#3c4352;margin:8px 0">
+        <li>In the ${esc(app)} message that just opened, click the 📎 attach button (or drag the file in from Downloads).</li>
+        <li>Pick <b>${esc(n)}</b> and send.</li></ol>
+      <p style="font-size:12.5px;color:#6b7385">The recipient saves the attachment and opens it in Chrome or Safari. Phone email apps often show HTML files as plain text, so the Google Maps links in the message are the quickest way to view the route on a phone.</p>
+      <footer><button class="btn primary" id="okAttach">Done</button></footer>`;
+    $("#okAttach").onclick = () => d.close();
+  };
+  $("#shWa").onclick = () => viaLink("https://wa.me/?text=" + enc(ta.value), "WhatsApp");
+  $("#shMail").onclick = () => viaLink(`mailto:?subject=${enc(title())}&body=${enc(ta.value.replace(/\r?\n/g, "\r\n"))}`, "your email app");
+  $("#shGmail").onclick = () => viaLink(`https://mail.google.com/mail/?view=cm&fs=1&su=${enc(title())}&body=${enc(ta.value)}`, "Gmail");
+  $("#shSms").onclick = () => viaLink("sms:?&body=" + enc(ta.value), "your messages app");
+  $("#shCopy").onclick = async () => { try { await navigator.clipboard.writeText(ta.value); toast("Copied. Paste it into any app."); } catch(e){ toast("Couldn't copy here: open Preview and copy the text"); } };
+  $("#shDl").onclick = () => dlFile();
+  if (canShareFiles) $("#shNative").onclick = async () => {
+    const data = {title: title(), text: ta.value};
+    if (inc().file){ const f = routeFile(lists()); data.files = [new File([f.html], f.name, {type: "text/html"})]; data.text += `\n\n🗺️ Attached: ${f.name}. Save it, then open it in a web browser (Chrome/Safari) to see the route on a map.`; }
+    try { await navigator.share(data); d.close(); }
+    catch(e){ if (e.name !== "AbortError") toast("That app couldn't take the file. Try WhatsApp/Email (file downloads to attach)."); }
+  };
+  $("#shClose").onclick = () => d.close();
+  $("#shFile").onclick = () => { save(); download(slug(S.title) + ".html", buildSelfFile(), "text/html"); };
+  $("#shKml").onclick = () => download(slug(S.title) + ".kml", toKML(S.lists), "application/vnd.google-earth.kml+xml");
+  $("#shLink").onclick = async () => { try { const u = C.link; await navigator.clipboard.writeText(u); toast("Phone link copied"); } catch(e){ toast("Couldn't copy the link in this browser"); } };
+}
+
+// ---------- Location permission ---------- (app build 2026-11-23c)
+async function locState(){
+  try { if (navigator.permissions && navigator.permissions.query) return (await navigator.permissions.query({name: "geolocation"})).state; } catch(e){}
+  return "prompt";
+}
+function locHelp(){
+  const ua = navigator.userAgent, samsung = /SamsungBrowser/i.test(ua), ios = /iPhone|iPad|iPod/i.test(ua), android = /Android/i.test(ua);
+  const app = samsung ? "Samsung Internet" : ios ? "Safari" : "Chrome";
+  const steps = ios ? [
+      "Open the iPhone <b>Settings</b> app → <b>Privacy & Security</b> → <b>Location Services</b>, and turn it on.",
+      "Still in Location Services, tap <b>Safari Websites</b> and choose <b>While Using the App</b>, with <b>Precise Location</b> on.",
+      "Come back here, tap <b>AA</b> or the page menu in the address bar → <b>Website Settings</b> → <b>Location: Allow</b>.",
+      "Reload this page and tap <b>🚗 Drive</b>."]
+    : android ? [
+      "Swipe down from the top of the screen and turn on <b>Location</b>.",
+      `Open phone <b>Settings</b> → <b>Apps</b> → <b>${app}</b> → <b>Permissions</b> → <b>Location</b> → <b>Allow only while using the app</b>, with <b>Use precise location</b> on.`,
+      `In ${app}, tap the icon to the left of the web address → <b>Permissions</b> → <b>Location</b> → <b>Allow</b>.`,
+      "Reload this page and tap <b>🚗 Drive</b>."]
+    : [
+      "Click the icon to the left of the web address (a slider or padlock).",
+      "Set <b>Location</b> to <b>Allow</b>.",
+      "Reload this page and click <b>🚗 Drive</b>."];
+  $("#dlgBody").innerHTML = `<h3>📍 Location is blocked</h3>
+    <p>Drive mode needs your location to guide you to each stop. It was blocked for this page, so the browser won't ask again until you turn it back on:</p>
+    <ol style="padding-left:20px;line-height:1.6;margin:10px 0">${steps.map(s => `<li style="margin-bottom:6px">${s}</li>`).join("")}</ol>
+    <p style="font-size:14px;color:#6b7385">Your location stays on this device. It's only used to show your position and work out directions, never saved or sent anywhere else.</p>
+    <footer><button class="btn" id="lhRetry">Try again</button><button class="btn primary" id="lhOk">OK</button></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal();
+  $("#lhOk").onclick = () => d.close();
+  $("#lhRetry").onclick = () => { d.close(); askLocation(true); };
+}
+// Shows our own explanation first, then triggers the browser's permission prompt from a tap.
+function askLocation(fromUser, then){
+  return new Promise(async resolve => {
+    if (!navigator.geolocation){ toast("This browser can't use GPS"); return resolve(false); }
+    const st = await locState();
+    if (st === "granted"){ then && then(); return resolve(true); }
+    if (st === "denied"){ locHelp(); return resolve(false); }
+    $("#dlgBody").innerHTML = `<div style="text-align:center"><div style="font-size:52px;line-height:1">📍</div>
+      <h3 style="margin:8px 0">Turn on location?</h3>
+      <p>Drive mode uses your phone's GPS to show where you are and give turn-by-turn directions to each stop on the route.</p>
+      <p style="font-size:14px;color:#6b7385">Next, your browser will ask to allow location. Tap <b>Allow</b> (or <b>While using the app</b>). Your location stays on this device and isn't saved or shared.</p></div>
+      <footer style="justify-content:center"><button class="btn" id="lpLater">Not now</button><button class="btn primary" id="lpAllow">📍 Allow location</button></footer>`;
+    const d = $("#dlg"); if (!d.open) d.showModal();
+    $("#lpLater").onclick = () => { d.close(); lsSet("routemaps:locLater", Date.now()); resolve(false); };
+    $("#lpAllow").onclick = () => {
+      $("#lpAllow").disabled = true; $("#lpAllow").textContent = "Waiting for your browser…";
+      navigator.geolocation.getCurrentPosition(
+        () => { d.close(); toast("Location is on. Tap 🚗 Drive to start."); then && then(); resolve(true); },
+        err => { d.close(); if (err.code === 1) locHelp(); else { toast("Couldn't get a GPS fix yet. Make sure Location is turned on."); } resolve(false); },
+        {enableHighAccuracy: true, timeout: 20000, maximumAge: 60000});
+    };
+  });
+}
+
+// ---------- Drive mode: GPS turn-by-turn ----------
+const NAV = {on: false, list: null, idx: 0, watch: null, pos: null, route: null, cum: [], lastFetch: 0, fetching: false,
+  follow: true, voice: lsGet("routemaps:voice") !== false, spoken: {}, layer: L.layerGroup(), me: null, lock: null, arrivedAt: null};
+const doneKey = l => "routemaps:done:" + l.id;
+const getDone = l => new Set(lsGet(doneKey(l)) || []);
+const setDone = (l, set) => { lsSet(doneKey(l), [...set]); const t = getDoneT(l); Object.keys(t).forEach(k => { if (!set.has(k)) delete t[k]; }); lsSet("routemaps:donet:" + l.id, t); };
+const getDoneT = l => lsGet("routemaps:donet:" + l.id) || {};
+const stampDone = (l, num, t = Date.now(), by = "") => { const o = getDoneT(l); o[num] = {t, by}; lsSet("routemaps:donet:" + l.id, o); };
+function navStops(l){
+  const out = [], seen = new Map();
+  l.places.forEach((p, i) => { const n = stopNum(p, i); if (!seen.has(n)){ seen.set(n, out.length); out.push({num: n, places: [p]}); } else out[seen.get(n)].places.push(p); });
+  return out.map(s => ({...s, target: s.places.find(hasLoc) || null}));
+}
+const R = 6371000, toRad = d => d * Math.PI / 180;
+function hav(a, b){ const dLat = toRad(b[0]-a[0]), dLng = toRad(b[1]-a[1]);
+  const x = Math.sin(dLat/2)**2 + Math.cos(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
+function project(p, a, b){ // distance from p to segment ab (metres) and fraction along it
+  const k = Math.cos(toRad(p[0])), ax = a[1]*k, ay = a[0], bx = b[1]*k, by = b[0], px = p[1]*k, py = p[0];
+  const dx = bx-ax, dy = by-ay, L2 = dx*dx + dy*dy; let t = L2 ? ((px-ax)*dx + (py-ay)*dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+  return {d: hav(p, [ay + t*dy, (ax + t*dx)/k]), t};
+}
+const fmtDist = m => m >= 1000 ? (m/1000).toFixed(m >= 10000 ? 0 : 1) + " km" : (m >= 100 ? Math.round(m/10)*10 : Math.max(0, Math.round(m))) + " m";
+const fmtTime = s => { const m = Math.round(s/60); return m < 60 ? m + " min" : Math.floor(m/60) + " h " + (m%60) + " min"; };
+const ARROWS = {"left":"⬅","right":"➡","slight left":"↖","slight right":"↗","sharp left":"↰","sharp right":"↱","uturn":"↩","straight":"⬆"};
+function instr(st){
+  const m = st.maneuver || {}, mod = m.modifier || "", on = st.name ? ` onto ${st.name}` : "", t = m.type;
+  if (t === "depart") return `Head ${m.bearing_after != null ? ["north","northeast","east","southeast","south","southwest","west","northwest"][Math.round(m.bearing_after/45)%8] : ""}${st.name ? " on " + st.name : ""}`;
+  if (t === "arrive") return "Arrive at the stop" + (mod === "left" || mod === "right" ? `, on the ${mod}` : "");
+  if (t === "roundabout" || t === "rotary") return `At the roundabout, take exit ${m.exit || 1}${on}`;
+  if (t === "fork") return `Keep ${mod.replace("slight ","")}${on}`;
+  if (t === "on ramp") return `Take the ramp${mod ? " on the " + mod.replace("slight ","") : ""}${on}`;
+  if (t === "off ramp") return `Take the exit${mod ? " on the " + mod.replace("slight ","") : ""}${on}`;
+  if (t === "merge") return `Merge${on}`;
+  if (t === "new name" || t === "continue") return mod === "straight" || !mod ? `Continue${on}` : `Keep ${mod}${on}`;
+  if (mod === "uturn") return "Make a U-turn" + (st.name ? " on " + st.name : "");
+  if (mod === "straight") return `Continue straight${on}`;
+  return `Turn ${mod}${on}`;
+}
+function say(text){ if (!NAV.voice || !("speechSynthesis" in window)) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "en-CA"; speechSynthesis.speak(u); } catch(e){} }
+function curStop(){ return NAV.list ? navStops(NAV.list)[NAV.idx] : null; }
+function nextUndone(from){ const st = navStops(NAV.list), done = getDone(NAV.list);
+  for (let i = from; i < st.length; i++) if (!done.has(st[i].num) && st[i].target) return i; return -1; }
+async function startNav(l){
+  if (!navigator.geolocation){ toast("This browser can't use GPS"); return; }
+  NAV.runt = null; runTime(l).then(r => { NAV.runt = r; }).catch(() => {});
+  NAV.list = l; NAV.on = true; NAV.route = null; NAV.follow = true; NAV.spoken = {}; NAV.arrivedAt = null;
+  let i = nextUndone(0); if (i < 0){ NAV.on = false; toast("Every stop on this run is already done.", 3000); return; }
+  NAV.idx = i; document.body.classList.add("navmode"); NAV.layer.addTo(map);
+  ui.openList = l.id; render({noFit: true}); setTimeout(() => map.invalidateSize(), 60);
+  navUI("Finding your location…");
+  try { if ("wakeLock" in navigator) NAV.lock = await navigator.wakeLock.request("screen"); } catch(e){}
+  NAV.watch = navigator.geolocation.watchPosition(onPos, err => {
+    if (err.code === 1){ stopNav(); locHelp(); } else navUI("Can't get a GPS fix yet. Make sure location is on.", true);
+  }, {enableHighAccuracy: true, maximumAge: 1000, timeout: 20000});
+}
+function stopNav(){
+  try { geofenceEnd(); } catch(e){}
+  if (RELOAD_AFTER_NAV){ setTimeout(() => location.reload(), 800); }
+  NAV.on = false; if (NAV.watch != null) navigator.geolocation.clearWatch(NAV.watch); NAV.watch = null;
+  try { NAV.lock && NAV.lock.release(); } catch(e){} NAV.lock = null;
+  try { speechSynthesis.cancel(); } catch(e){}
+  NAV.layer.clearLayers(); map.removeLayer(NAV.layer); NAV.me = null;
+  document.body.classList.remove("navmode"); $("#navTop").innerHTML = ""; $("#navBot").innerHTML = "";
+  render({noFit: true}); setTimeout(() => map.invalidateSize(), 60);
+}
+async function fetchRoute(){
+  const s = curStop(); if (!s || !NAV.pos || NAV.fetching) return;
+  NAV.fetching = true; NAV.lastFetch = Date.now();
+  const a = NAV.pos, b = s.target;
+  try {
+    const j = await osrm(`/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&steps=true`);
+    const rt = j.routes[0]; const coords = rt.geometry.coordinates.map(c => [c[1], c[0]]);
+    const cum = [0]; for (let i = 1; i < coords.length; i++) cum.push(cum[i-1] + hav(coords[i-1], coords[i]));
+    const steps = rt.legs[0].steps; const sc = []; let acc = 0; steps.forEach(st => { sc.push(acc); acc += st.distance; });
+    const scale = acc ? cum[cum.length-1] / acc : 1; // align step distances with geometry length
+    NAV.route = {coords, cum, steps, stepStart: sc.map(x => x * scale), duration: rt.duration, distance: cum[cum.length-1]};
+    NAV.spoken = {};
+  } catch(e){ NAV.route = {error: true}; }
+  NAV.fetching = false; drawNav(); update();
+}
+// ---------- Geofence: records arriving at and leaving each stop on the run being driven ----------
+const GEO_IN = 50, GEO_OUT = 120, GEO_MAXACC = 75, GEO_COOLDOWN = 3 * 60000;
+function stopDist(s, here){ let best = Infinity, bp = null; s.places.forEach(p => { if (hasLoc(p)){ const d = hav(here, [p.lat, p.lng]); if (d < best){ best = d; bp = p; } } }); return {d: best, p: bp}; }
+const fmtDur = ms => { const m = Math.round(ms / 60000); return m < 1 ? "under 1 min" : m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min"; };
+function geofence(){
+  if (!NAV.on || !NAV.list || !NAV.pos) return;
+  const G = NAV.geo = NAV.geo || {inside: {}, left: {}}, here = [NAV.pos.lat, NAV.pos.lng], now = Date.now();
+  if ((NAV.pos.acc || 999) > GEO_MAXACC) return;   // too fuzzy to count as proof
+  navStops(NAV.list).forEach(s => {
+    const {d, p} = stopDist(s, here); if (!p) return;
+    const ins = G.inside[s.num];
+    if (!ins && d <= GEO_IN && !(G.left[s.num] && now - G.left[s.num] < GEO_COOLDOWN)){
+      G.inside[s.num] = {t: now, p};
+      logEvent("arrived", NAV.list, p, s.num, "", {t: now, pos: {...NAV.pos}, dist: Math.round(d)});
+      toast(`📍 Arrival at stop ${s.num} recorded`, 2500);
+    } else if (ins && d > GEO_OUT){
+      delete G.inside[s.num]; G.left[s.num] = now;
+      logEvent("departed", NAV.list, ins.p, s.num, "", {t: now, pos: {...NAV.pos}, dist: Math.round(d), onsite: fmtDur(now - ins.t)});
+    }
+  });
+}
+function geofenceEnd(){
+  const G = NAV.geo; if (!G || !NAV.list) return; const now = Date.now();
+  Object.entries(G.inside).forEach(([num, ins]) => logEvent("departed", NAV.list, ins.p, num, "", {t: now, pos: NAV.pos ? {...NAV.pos} : null, onsite: fmtDur(now - ins.t) + " (drive ended)"}));
+  NAV.geo = null;
+}
+function onPos(p){
+  const c = p.coords; NAV.pos = {lat: c.latitude, lng: c.longitude, acc: c.accuracy, heading: c.heading, speed: c.speed}; NAV.posT = Date.now();
+  try { geofence(); } catch(e){}
+  const ll = [NAV.pos.lat, NAV.pos.lng];
+  if (!NAV.me){
+    NAV.me = L.marker(ll, {icon: L.divIcon({className: "", iconSize: [26,26], iconAnchor: [13,13], html: '<div class="me"><div class="me-dot"></div></div>'}), zIndexOffset: 5000, interactive: false}).addTo(NAV.layer);
+    NAV.acc = L.circle(ll, {radius: NAV.pos.acc || 20, color: "#1a73e8", weight: 1, opacity: .4, fillOpacity: .08, interactive: false}).addTo(NAV.layer);
+  } else { NAV.me.setLatLng(ll); NAV.acc.setLatLng(ll).setRadius(NAV.pos.acc || 20); }
+  if (NAV.follow) map.setView(ll, Math.max(map.getZoom(), 17), {animate: true});
+  if (!NAV.route || NAV.route.error && Date.now() - NAV.lastFetch > 15000) fetchRoute(); else update();
+}
+function progress(){
+  const rt = NAV.route, p = [NAV.pos.lat, NAV.pos.lng]; let best = {d: Infinity, along: 0};
+  for (let i = 1; i < rt.coords.length; i++){ const q = project(p, rt.coords[i-1], rt.coords[i]);
+    if (q.d < best.d) best = {d: q.d, along: rt.cum[i-1] + q.t * (rt.cum[i] - rt.cum[i-1])}; }
+  return best;
+}
+function update(){
+  if (!NAV.on || !NAV.pos) return;
+  const s = curStop(); if (!s) return;
+  const here = [NAV.pos.lat, NAV.pos.lng], toStop = hav(here, [s.target.lat, s.target.lng]);
+  if (toStop < 40 && !NAV.arrivedAt){ NAV.arrivedAt = Date.now(); say(`Arrived at stop ${s.num}, ${s.target.name}`); }
+  if (NAV.arrivedAt){ navArrived(s); return; }
+  const rt = NAV.route;
+  if (!rt){ navUI("Getting directions…"); return; }
+  if (rt.error){ navUI(`Directions unavailable right now. Stop ${s.num} is ${fmtDist(toStop)} away in a straight line.`, false, true); return; }
+  const pr = progress();
+  if (pr.d > 60 && (NAV.pos.acc || 0) < 60 && Date.now() - NAV.lastFetch > 8000){ say("Rerouting"); fetchRoute(); return; }
+  let k = 0; for (let i = 0; i < rt.steps.length; i++) if (rt.stepStart[i] <= pr.along + 5) k = i;
+  const next = rt.steps[k+1] || rt.steps[k], toMan = (rt.stepStart[k+1] != null ? rt.stepStart[k+1] : rt.distance) - pr.along;
+  const remain = Math.max(0, rt.distance - pr.along), eta = rt.duration * (remain / (rt.distance || 1));
+  const text = instr(next), mod = (next.maneuver || {}).modifier, arrow = next.maneuver && next.maneuver.type === "arrive" ? "🏁" : (ARROWS[mod] || "⬆");
+  for (const th of [500, 150, 30]){ const key = (k+1) + ":" + th;
+    if (toMan <= th && toMan > (th === 30 ? -20 : th * .4) && !NAV.spoken[key]){ NAV.spoken[key] = 1; say(th === 30 ? text : `In ${fmtDist(toMan)}, ${text}`); break; } }
+  $("#navTop").innerHTML = `<div class="nav-arrow">${arrow}</div><div class="nav-text"><div class="nav-dist">${fmtDist(toMan)}</div><div class="nav-instr">${esc(text)}</div></div>`;
+  const rl = runLeft(eta);
+  navBottom(s, `${fmtDist(remain)} · ${fmtTime(eta)}${rl != null ? " · run left ≈ " + fmtTime(rl) : ""}`);
+}
+function navBottom(s, meta, extra=""){
+  const st = navStops(NAV.list), doneN = getDone(NAV.list).size;
+  $("#navBot").innerHTML = `<div class="nav-stop"><span class="num" style="background:${NAV.list.color}">${s.num}</span>
+      <div style="min-width:0;flex:1"><b>${esc(s.target.name)}</b><small>${meta ? esc(meta) + " · " : ""}Stop ${NAV.idx+1} of ${st.length} · ${doneN} done</small>
+      ${(() => { if (!getDone(NAV.list).has(s.num)) return ""; const v = getDoneT(NAV.list)[s.num] || (NAV.sv && NAV.sv.get(s.num)) || {};
+        return `<div style="background:#fef7e0;border:1px solid #f9e29c;color:#7a4f01;border-radius:8px;padding:6px 10px;margin-top:6px;font-weight:600">⚠ Already serviced on this run${v.t ? " at " + fmtT(v.t) : ""}${v.by ? " · " + esc(v.by) : ""}</div>`; })()}
+      ${noteOf(s.places[0]) ? `<div class="nav-note">${esc(noteOf(s.places[0]))}</div>` : ""}</div></div>
+    ${extra}
+    <div class="nav-btns">
+      <button class="btn" id="nvPrev" title="Previous stop">◀</button>
+      <button class="btn" id="nvSkip">Skip ▶</button>
+      <button class="btn" id="nvCenter" ${NAV.follow ? "disabled" : ""}>◎ Recenter</button>
+      <button class="btn" id="nvVoice">${NAV.voice ? "🔊" : "🔇"}</button>
+      <button class="btn" id="nvG" title="Open this leg in Google Maps">G</button>
+      <button class="btn danger" id="nvEnd">End</button>
+    </div>`;
+  $("#nvPrev").onclick = () => goStop(-1); $("#nvSkip").onclick = () => goStop(1);
+  $("#nvCenter").onclick = () => { NAV.follow = true; NAV.pos && map.setView([NAV.pos.lat, NAV.pos.lng], 17); update(); };
+  $("#nvVoice").onclick = () => { NAV.voice = !NAV.voice; lsSet("routemaps:voice", NAV.voice); if (!NAV.voice) try{speechSynthesis.cancel();}catch(e){} update(); };
+  $("#nvG").onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.target.lat},${s.target.lng}&travelmode=driving&dir_action=navigate`, "_blank", "noopener");
+  $("#nvEnd").onclick = stopNav;
+  const smb = $("#navBot [data-sm]"); // site map chip handled by global listener
+}
+function navArrived(s){
+  $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
+  navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done, next stop</button></div>`);
+  const np = $("#nvPhoto"); if (np) np.onclick = () => takePhoto(NAV.list, s.target, s.num);
+  $("#nvDone").onclick = () => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num);
+    const n = nextUndone(NAV.idx + 1) >= 0 ? nextUndone(NAV.idx + 1) : nextUndone(0);
+    if (n < 0){ say("Route complete"); toast("Route complete. Every stop is done."); stopNav(); return; }
+    NAV.idx = n; NAV.arrivedAt = null; NAV.route = null; drawNav(); fetchRoute(); };
+}
+function goStop(d){
+  const st = navStops(NAV.list); let i = NAV.idx;
+  do { i += d; } while (i >= 0 && i < st.length && !st[i].target);
+  if (i < 0 || i >= st.length) return toast(d > 0 ? "That's the last stop" : "That's the first stop");
+  NAV.idx = i; NAV.arrivedAt = null; NAV.route = null; drawNav(); navUI("Getting directions…"); fetchRoute();
+}
+function navUI(msg, err, gbtn){
+  const s = curStop();
+  $("#navTop").innerHTML = `<div class="nav-arrow">${err ? "⚠" : "🧭"}</div><div class="nav-text"><div class="nav-instr">${esc(msg)}</div></div>`;
+  if (s && s.target){
+    navBottom(s, "", gbtn ? `<button class="btn primary" id="nvGo" style="width:100%;margin:8px 0">🗺️ Navigate to this stop in Google Maps</button>` : "");
+    const g = $("#nvGo"); if (g) g.onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.target.lat},${s.target.lng}&travelmode=driving&dir_action=navigate`, "_blank", "noopener");
+  }
+}
+function drawNav(){
+  NAV.layer.eachLayer(x => { if (x !== NAV.me && x !== NAV.acc) NAV.layer.removeLayer(x); });
+  const s = curStop(); if (!s) return;
+  L.circleMarker([s.target.lat, s.target.lng], {radius: 18, color: "#ea4335", weight: 3, fillOpacity: .1, interactive: false}).addTo(NAV.layer);
+  if (NAV.route && NAV.route.coords){
+    L.polyline(NAV.route.coords, {color: "#ffffff", weight: 5, opacity: .7, interactive: false}).addTo(NAV.layer);
+    L.polyline(NAV.route.coords, {color: "#1a73e8", weight: 3, opacity: .85, interactive: false}).addTo(NAV.layer);
+  }
+}
+map.on("dragstart", () => { if (NAV.on && NAV.follow){ NAV.follow = false; update(); } });
+document.addEventListener("visibilitychange", async () => { if (NAV.on && document.visibilityState === "visible" && "wakeLock" in navigator){ try { NAV.lock = await navigator.wakeLock.request("screen"); } catch(e){} } });
+
+
+// ---------- misc ----------
+let toastT;
+function toast(msg, ms=2200){ const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), ms); }
+
+// Opening a share link (#map=...) loads that map as a separate copy
+window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) location.reload(); });
+(async function init(){
+  const m = location.hash.match(/^#map=([\w-]+)/);
+  if (m && "DecompressionStream" in window){
+    try {
+      const b = atob(m[1].replace(/-/g, "+").replace(/_/g, "/")); const u8 = Uint8Array.from(b, c => c.charCodeAt(0));
+      const ds = new Blob([u8]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      const shared = normalize(JSON.parse(await new Response(ds).text()));
+      const local = lsGet("routemaps:" + shared.id);
+      S = (local && (local.savedAt||0) > (shared.savedAt||0)) ? normalize(local) : shared;
+      history.replaceState(null, "", location.pathname + location.search);
+      save(); map.setView([S.view.lat, S.view.lng], S.view.z);
+    } catch(e){ toast("That share link couldn't be opened"); }
+  }
+  if (/^https?:/.test(location.protocol) && !window.EMBEDDED_MAP && !m && !lsGet("routemaps:last")){
+    S.title = "SALT Route Maps"; S.lists = []; }
+  applyLayout(); applyRole(); applyCrew();
+  if (S.lists.length === 1){ ui.openList = S.lists[0].id; }
+  render();
+  if (S.lists.length === 1) fitList(S.lists[0]);
+  if (navigator.geolocation){
+    const st = await locState(), later = lsGet("routemaps:locLater") || 0;
+    if (st !== "granted" && Date.now() - later > 864e5) setTimeout(() => {
+      if ($("#dlg").open) return;
+      if (st === "denied"){ lsSet("routemaps:locLater", Date.now()); locHelp(); } else askLocation(false);
+    }, 700);
+  }
+  initCrew(); registerSW(); setTimeout(flushLog, 3000);
+  if (!window.EMBEDDED_MAP && !lsGet("routemaps:seen")){ lsSet("routemaps:seen", 1); toast("Tip: File → Import brings in a Google Takeout CSV or KML", 5000); }
+})();
+});
+</script>
+<script>
+// Hosted site: every run is encrypted with its own key (runs.enc).
+// Admin password opens keys.enc (all keys). Drivers sign in with their PIN; the office's Google Sheet
+// (Apps Script) checks it and returns the keys for only the runs assigned to them right now.
+(async function(){
+  const run = () => window.__appMain();
+  const ok = window.crypto && crypto.subtle && "DecompressionStream" in window;
+  if (window.EMBEDDED_MAP || /[#&]map=/.test(location.hash) || !/^https?:/.test(location.protocol) || !ok) return run();
+  const b64d = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+  const gunzip = async buf => JSON.parse(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
+  async function decPw(buf, pw){
+    try {
+      if (new TextDecoder().decode(buf.slice(0, 6)) !== "RMENC1") return null;
+      const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+      const key = await crypto.subtle.deriveKey({name: "PBKDF2", salt: buf.slice(6, 22), iterations: 200000, hash: "SHA-256"}, base, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
+      return await gunzip(await crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(22, 34)}, key, buf.slice(34)));
+    } catch(e){ return null; }
+  }
+  async function decRaw(b64, keyB64){
+    try {
+      const buf = b64d(b64), key = await crypto.subtle.importKey("raw", b64d(keyB64), "AES-GCM", false, ["decrypt"]);
+      return await gunzip(await crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(0, 12)}, key, buf.slice(12)));
+    } catch(e){ return null; }
+  }
+  const getJSON = async f => { const r = await fetch(f, {cache: "no-cache"}); if (!r.ok) throw new Error(f); return r.json(); };
+  let meta, runs;
+  try { [meta, runs] = await Promise.all([getJSON("meta.json"), getJSON("runs.enc")]); }
+  catch(e){
+    try { const d = await getJSON("routes.json"); window.__FROM_SITE = true; window.EMBEDDED_MAP = d.map; window.EMBEDDED_SITEMAPS = d.sm || {}; } catch(e2){}
+    return run();
+  }
+  const api = window.__rmApi = async (body, ms = 15000) => {
+    const url = meta.config && meta.config.logUrl; if (!url) throw new Error("no server");
+    const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+    try { const r = await fetch(url, {method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"}, body: JSON.stringify(body), signal: c.signal}); return await r.json(); }
+    finally { clearTimeout(t); }
+  };
+  const store = v => { try { v ? localStorage.setItem("routemaps:access", JSON.stringify(v)) : localStorage.removeItem("routemaps:access"); } catch(e){} };
+  async function openWith(access){
+    const lists = [], sm = {};
+    for (const id of runs.order){
+      const k = access.keys[id]; if (!k || !runs.runs[id]) continue;
+      const o = await decRaw(runs.runs[id], k); if (!o) continue;
+      lists.push(o.list); Object.assign(sm, o.sm || {});
+    }
+    window.__FROM_SITE = true; window.__ACCESS = access;
+    window.EMBEDDED_MAP = {...meta, lists};
+    window.EMBEDDED_SITEMAPS = sm;
+    return true;
+  }
+  async function adminOpen(pw){
+    try {
+      const r = await fetch("keys.enc", {cache: "no-cache"}); if (!r.ok) return false;
+      const o = await decPw(new Uint8Array(await r.arrayBuffer()), pw); if (!o) return false;
+      window.__ADMIN_PW = pw;
+      return openWith({role: "admin", name: "Admin", keys: o.keys, logKey: o.logKey});
+    } catch(e){ return false; }
+  }
+  // Ask the office sheet which runs this PIN may see right now.
+  async function driverLogin(pin){
+    try { const j = await api({action: "login", pin}); return j; } catch(e){ return null; }
+  }
+  const wantAdmin = /[#&]admin\b/.test(location.hash);
+  const clearHash = () => history.replaceState(null, "", location.pathname + location.search);
+  let stored = null; try { stored = JSON.parse(localStorage.getItem("routemaps:access")); } catch(e){}
+  if (!wantAdmin && stored){
+    if (stored.role === "admin"){ if (await adminOpen(stored.pw)) return run(); store(null); }
+    else if (stored.pin){
+      const j = await driverLogin(stored.pin);
+      if (j && j.ok){ const a = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin: stored.pin, runs: j.runs || []}; store(a); await openWith(a); return run(); }
+      if (j && !j.ok && j.error === "bad pin") store(null);                       // removed or PIN changed
+      else { await openWith({...stored, offline: true}); return run(); }        // no signal: use what this phone already has
+    }
+  }
+
+  // ---------- sign-in screen ----------
+  const box = document.createElement("div"); box.id = "unlock";
+  box.style.cssText = "position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;background:#eef1f5;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#202124";
+  const field = 'width:100%;box-sizing:border-box;font-size:20px;padding:12px 14px;border:1px solid #c4c7cc;border-radius:10px';
+  const btn = 'width:100%;font-size:18px;padding:12px;border:0;border-radius:10px;background:#1a73e8;color:#fff;font-weight:600;margin-top:12px;cursor:pointer';
+  function screen(mode){
+    const head = `<div style="font-size:46px;line-height:1">${mode === "admin" ? "🔒" : "🔑"}</div><h2 style="margin:8px 0 4px;font-size:22px">${meta.title || "SALT Routes"}</h2>`;
+    const body = mode === "admin"
+      ? `<p style="margin:0 0 14px;color:#5f6368">Admin sign-in</p>
+        <form id="ulForm"><input id="ulPw" type="password" autocomplete="current-password" placeholder="Admin password" style="${field}">
+        <button style="${btn}">Sign in</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`
+      : `<p style="margin:0 0 14px;color:#5f6368">Drivers: enter the PIN the office gave you.</p>
+        <form id="ulForm"><input id="ulPin" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your PIN" style="${field};text-align:center;letter-spacing:.1em;text-transform:uppercase">
+        <button style="${btn}">Sign in</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`;
+    const foot = mode === "admin" ? `<a href="#" id="ulBack" style="color:#5f6368;font-size:14px">Driver sign-in</a>` : `<a href="#" id="ulAdmin" style="color:#5f6368;font-size:14px">Admin sign-in</a>`;
+    box.innerHTML = `<div style="background:#fff;border-radius:16px;padding:26px 22px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.18);text-align:center">${head}${body}<div style="margin-top:14px">${foot}</div></div>`;
+    const a = box.querySelector("#ulAdmin"), bk = box.querySelector("#ulBack");
+    if (a) a.onclick = e => { e.preventDefault(); screen("admin"); };
+    if (bk) bk.onclick = e => { e.preventDefault(); screen("pin"); };
+    const f = box.querySelector("#ulForm"), inp = f.querySelector("input"), err = f.querySelector("#ulErr"), go = f.querySelector("button"); inp.focus();
+    f.onsubmit = async e => {
+      e.preventDefault(); err.textContent = ""; go.disabled = true; const label = go.textContent; go.textContent = "Signing in…";
+      let okd = false;
+      if (mode === "pin"){
+        const pin = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const j = pin ? await driverLogin(pin) : null;
+        if (!j) err.textContent = "Couldn't reach the office. Check your signal and try again.";
+        else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : "That PIN isn't right. Check it and try again.";
+        else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || []}; store(acc); await openWith(acc); okd = true; }
+      } else {
+        if (await adminOpen(inp.value)){ store({role: "admin", pw: inp.value}); okd = true; } else err.textContent = "Wrong password.";
+      }
+      if (okd){ clearHash(); box.remove(); run(); } else { go.disabled = false; go.textContent = label; inp.select(); }
+    };
+  }
+  document.body.appendChild(box);
+  screen(wantAdmin ? "admin" : "pin");
+})();
+</script>
+</body>
+</html>
