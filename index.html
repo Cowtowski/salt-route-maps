@@ -436,9 +436,9 @@ function popupHtml(l, p, i){
 document.addEventListener("click", ev => {
   const pd = ev.target.closest && ev.target.closest("[data-pdone]");
   if (pd){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pd.dataset.pdone); if (!f) return;
-    const on = markDone(f.list, f.place, f.index);
-    pd.textContent = on ? "✓ Done · undo" : "✓ Mark done"; pd.classList.toggle("on", on);
-    renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); return; }
+    completeStop(f.list, f.place, f.index, on => {
+      pd.textContent = on ? "✓ Done · undo" : "✓ Mark done"; pd.classList.toggle("on", on);
+      renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); }); return; }
   const pp = ev.target.closest && ev.target.closest("[data-pphoto]");
   if (pp){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pp.dataset.pphoto); if (f) takePhoto(f.list, f.place, stopNum(f.place, f.index)); }
 }, true);
@@ -723,7 +723,7 @@ function bindDetailView(l){
   side.querySelectorAll("[data-edit]").forEach(el => el.onclick = () => { ui.editPlace = ui.editPlace === el.dataset.edit ? null : el.dataset.edit; ui.selPlace = el.dataset.edit; renderSide(); scrollToPlace(el.dataset.edit); });
   const move = (id, d) => { const i = l.places.findIndex(p => p.id === id), j = i + d; if (j < 0 || j >= l.places.length) return; commit(() => { const [x] = l.places.splice(i,1); l.places.splice(j,0,x); }, {noFit: true}); };
   side.querySelectorAll("[data-done]").forEach(el => el.onclick = ev => { ev.stopPropagation(); const f = findPlace(el.dataset.done); if (!f) return;
-    const on = markDone(f.list, f.place, f.index); renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); });
+    completeStop(f.list, f.place, f.index, on => { renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); }); });
   side.querySelectorAll("[data-up]").forEach(el => el.onclick = () => move(el.dataset.up, -1));
   side.querySelectorAll("[data-down]").forEach(el => el.onclick = () => move(el.dataset.down, 1));
   side.querySelectorAll("[data-form]").forEach(f => {
@@ -1065,7 +1065,7 @@ async function logEvent(event, l, p, num, photo, extra = {}){
   const dist = g && hasLoc(p) ? Math.round(hav([g.lat, g.lng], [p.lat, p.lng])) : "";
   const e = {id: uid() + uid(), t, event, run: l.name, stop: num, name: p.name, address: p.address || "", driver: dv.name, truck: dv.truck || "",
     lat: g ? +g.lat.toFixed(6) : "", lng: g ? +g.lng.toFixed(6) : "", acc: g && g.acc ? Math.round(g.acc) : "", dist: extra.dist ?? dist,
-    onsite: extra.onsite || "", photo: photo || ""};
+    onsite: extra.onsite || "", photo: photo || "", work: extra.work || "", missed: extra.missed || "", materials: extra.materials || "", comment: extra.comment || ""};
   const q = lsGet(LOGQ) || []; q.push(e);
   try { localStorage.setItem(LOGQ, JSON.stringify(q)); } catch(err){ sendLog(e); return; }
   flushLog();
@@ -1082,12 +1082,62 @@ async function flushLog(){
   const left = (lsGet(LOGQ) || []).length; if (!left && q.length) toast(`Sent ${q.length} update${q.length === 1 ? "" : "s"} to the office log`);
 }
 window.addEventListener("online", flushLog); setInterval(flushLog, 60000);
-function markDone(l, p, i, on){
+function markDone(l, p, i, on, det){
   const num = stopNum(p, i), d = getDone(l);
   if (on === undefined) on = !d.has(num);
   on ? d.add(num) : d.delete(num); setDone(l, d); if (on) stampDone(l, num);
-  if (on) logEvent("done", l, p, num);
+  if (on) logEvent("done", l, p, num, "", det || {});
   return on;
+}
+// ---------- Completion form: scope of work, materials, comments ----------
+const MATERIALS = ["Bulk Salt Used", "Salt Bags Used", "Ice Melt Bags Used", "Salt Box Empty/Needs Re-fill"];
+// "#4 - Driveway; Parking; Walkways Notes: Salt Required" -> ["Driveway", "Parking", "Walkways"]
+function scopeItems(places){
+  for (const p of places){
+    let t = noteOf(p); if (!t) continue;
+    const named = /^#\s*\d+\s+(?!Start\b|End\b)[A-Za-z].*?\s+-\s+.*?\.\s+(.*)$/i.exec(t);   // "#1 Exhibition - OTG, Go Station. Plow; Salt"
+    if (named) t = named[1];
+    t = t.replace(/^#\s*\d+\s*(Start|End)?\s*(\([^)]*\))?\s*(\(incl\.[^)]*\))?\s*/i, "");
+    t = t.replace(/^-\s*/, "").replace(/^\(incl\.[^)]*\)\s*/i, "");
+    t = t.split(/\s+Notes?:/i)[0];
+    const items = t.split(/;\s*/).map(x => x.trim().replace(/\.$/, "")).filter(x => x && x.length > 1 && !/^empty$/i.test(x));
+    if (items.length) return items;
+  }
+  return [];
+}
+function doneForm(l, places, num, onSave){
+  const items = scopeItems(places), p0 = places[0];
+  const notes = (noteOf(places.find(p => /Notes?:/i.test(noteOf(p))) || p0).split(/Notes?:/i)[1] || "").trim();
+  const cb = (name, label, i) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 2px;border-bottom:1px solid #f0f2f5;cursor:pointer">
+      <input type="checkbox" name="${name}" value="${i}" style="width:22px;height:22px;flex:none;margin-top:1px"><span>${esc(label)}</span></label>`;
+  $("#dlgBody").innerHTML = `<h3>✓ Stop ${esc(num)} done</h3><p style="margin-top:0"><b>${esc(p0.name)}</b></p>
+    <form id="dfForm">
+    ${items.length ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><b>Work completed</b><a href="#" id="dfAll">Select all</a></div>
+      <div style="border:1px solid var(--line);border-radius:10px;padding:0 10px;margin:6px 0 10px;max-height:32vh;overflow:auto">${items.map((t, i) => cb("work", t, i)).join("")}</div>` : ""}
+    ${notes ? `<p style="font-size:13.5px;color:#6b7385;margin:0 0 8px">Notes: ${esc(notes)}</p>` : ""}
+    <b>Materials</b>
+    <div style="border:1px solid var(--line);border-radius:10px;padding:0 10px;margin:6px 0 10px">${MATERIALS.map((t, i) => cb("mat", t, i)).join("")}</div>
+    <b>Comments</b>
+    <textarea id="dfCom" placeholder="Anything the office should know (blocked lot, cars in the way, damage…)" style="width:100%;box-sizing:border-box;min-height:80px;margin-top:6px;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px"></textarea>
+    <footer><button class="btn" type="button" id="dfCancel">Cancel</button><button class="btn primary" type="submit">✓ Mark done</button></footer></form>`;
+  const d = $("#dlg"); if (!d.open) d.showModal();
+  const all = $("#dfAll"); if (all) all.onclick = e => { e.preventDefault(); const bs = [...$("#dfForm").querySelectorAll("input[name=work]")]; const on = bs.some(b => !b.checked); bs.forEach(b => b.checked = on); all.textContent = on ? "Clear all" : "Select all"; };
+  $("#dfCancel").onclick = () => d.close();
+  $("#dfForm").onsubmit = e => {
+    e.preventDefault(); const f = $("#dfForm");
+    const work = [...f.querySelectorAll("input[name=work]:checked")].map(b => items[+b.value]);
+    const missed = items.filter((t, i) => !f.querySelector(`input[name=work][value="${i}"]`).checked);
+    const mats = [...f.querySelectorAll("input[name=mat]:checked")].map(b => MATERIALS[+b.value]);
+    d.close();
+    onSave({work: work.join("; "), missed: missed.join("; "), materials: mats.join("; "), comment: $("#dfCom").value.trim()});
+  };
+}
+// Marks a stop done (with the form) or undoes it; cb(on) after.
+function completeStop(l, p, i, cb){
+  const num = stopNum(p, i);
+  if (getDone(l).has(num)){ markDone(l, p, i, false); return cb(false); }
+  const places = l.places.filter((q, k) => stopNum(q, k) === num);
+  doneForm(l, places.length ? places : [p], num, det => { markDone(l, p, i, true, det); cb(true); });
 }
 function takePhoto(l, p, num){
   const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
@@ -1218,7 +1268,8 @@ async function loadProgress(){
     entries = entries.slice().sort((a, b) => (+a.stop || 0) - (+b.stop || 0) || (a.t || 0) - (b.t || 0));
     const rowsHtml = entries.map(e => `<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid #f0f2f5;font-size:14px">
         <span style="font-weight:700;min-width:34px">#${esc(e.stop)}</span><span style="flex:1;min-width:0">${esc(e.name || "")}<br>
-        <small style="color:#6b7385">${e.t ? fmtT(e.t) : ""}${e.driver ? " · " + esc(e.driver) + (e.truck ? " (" + esc(e.truck) + ")" : "") : ""}</small></span></div>`).join("");
+        <small style="color:#6b7385">${e.t ? fmtT(e.t) : ""}${e.driver ? " · " + esc(e.driver) + (e.truck ? " (" + esc(e.truck) + ")" : "") : ""}</small>
+        ${e.missed ? `<small style="color:#c5221f;display:block">Not done: ${esc(e.missed)}</small>` : ""}${e.materials ? `<small style="display:block">🧂 ${esc(e.materials)}</small>` : ""}${e.comment ? `<small style="display:block">💬 ${esc(e.comment)}</small>` : ""}</span></div>`).join("");
     return `<details style="padding:8px 4px;border-bottom:1px solid var(--line)" ${entries.length ? "open" : ""}>
       <summary style="cursor:pointer;list-style:none">
         <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:15px">${esc(l.name)}</b><span style="white-space:nowrap;font-weight:700">${n}/${st.length}</span></div>
@@ -1910,10 +1961,10 @@ function navArrived(s){
   $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
   navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done, next stop</button></div>`);
   const np = $("#nvPhoto"); if (np) np.onclick = () => takePhoto(NAV.list, s.target, s.num);
-  $("#nvDone").onclick = () => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num);
+  $("#nvDone").onclick = () => doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
     const n = nextUndone(NAV.idx + 1) >= 0 ? nextUndone(NAV.idx + 1) : nextUndone(0);
     if (n < 0){ say("Route complete"); toast("Route complete. Every stop is done."); stopNav(); return; }
-    NAV.idx = n; NAV.arrivedAt = null; NAV.route = null; drawNav(); fetchRoute(); };
+    NAV.idx = n; NAV.arrivedAt = null; NAV.route = null; drawNav(); fetchRoute(); });
 }
 function goStop(d){
   const st = navStops(NAV.list); let i = NAV.idx;
