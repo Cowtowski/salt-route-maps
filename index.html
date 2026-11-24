@@ -3,7 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" id="vp" content="width=device-width, initial-scale=1">
-<title>Route Maps</title>
+<title>SALT Routes · tap to open</title>
+<meta name="description" content="Your salt runs, Drive mode and site maps. Sign in with your PIN.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SALT Routes">
+<meta property="og:title" content="SALT Routes · tap to open">
+<meta property="og:description" content="Your salt runs, Drive mode and site maps. Sign in with your PIN.">
+<meta property="og:url" content="https://cowtowski.github.io/salt-route-maps/">
+<meta property="og:image" content="https://cowtowski.github.io/salt-route-maps/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta name="twitter:card" content="summary">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1a73e8">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -1647,6 +1657,7 @@ function openShareDialog(){
       <button class="btn" id="shMail">✉️ Email app</button>
       <button class="btn" id="shSms">💬 SMS</button>
       <button class="btn" id="shCopy">Copy text</button>
+      <button class="btn" id="shCopyMail">📋 Copy for email</button>
       <button class="btn" id="shDl">⬇ Map file only</button>
     </div>
     <p id="shHint" style="font-size:12.5px;color:#6b7385;margin-top:10px"></p>
@@ -1721,6 +1732,19 @@ function openShareDialog(){
   $("#shMail").onclick = () => viaLink(`mailto:?subject=${enc(title())}&body=${enc(ta.value.replace(/\r?\n/g, "\r\n"))}`, "your email app");
   $("#shGmail").onclick = () => viaLink(`https://mail.google.com/mail/?view=cm&fs=1&su=${enc(title())}&body=${enc(ta.value)}`, "Gmail");
   $("#shSms").onclick = () => viaLink("sms:?&body=" + enc(ta.value), "your messages app");
+  // Email version: "Please press on the blue link" becomes a real link with the address hidden behind it
+  $("#shCopyMail").onclick = async () => {
+    const lines = ta.value.split("\n").map(line => {
+      const m = /^(.*)Please press on the blue link:\s*(https?:\/\/\S+)(.*)$/.exec(line);
+      if (m) return `${esc(m[1])}<a href="${esc(m[2])}" style="color:#1a73e8;font-weight:bold">Please press on the blue link</a>${esc(m[3])}`;
+      return esc(line).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}">${/google\.com\/maps/.test(u) ? "Open in Google Maps" : u}</a>`);
+    });
+    const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5">${lines.join("<br>")}</div>`;
+    try {
+      await navigator.clipboard.write([new ClipboardItem({"text/html": new Blob([html], {type: "text/html"}), "text/plain": new Blob([ta.value], {type: "text/plain"})})]);
+      toast("Copied. Paste it into your email: the blue link is ready.", 4000);
+    } catch(e){ toast("This browser can't copy links. Use Copy text instead."); }
+  };
   $("#shCopy").onclick = async () => { try { await navigator.clipboard.writeText(ta.value); toast("Copied. Paste it into any app."); } catch(e){ toast("Couldn't copy here: open Preview and copy the text"); } };
   $("#shDl").onclick = () => dlFile();
   if (canShareFiles) $("#shNative").onclick = async () => {
