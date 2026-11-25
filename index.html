@@ -679,6 +679,7 @@ function detailView(l){
     </form>
     <div class="toolbar">
       <button class="btn primary" id="drive">🚗 Drive</button>
+      <span id="svcWrap">${svcToolbarBtn(l)}</span>
       <button class="btn" id="dropPin">📍 Drop pin</button>
       <button class="btn" id="fit">Zoom to list</button>
       <button class="btn ${l.visible?"":"on"}" id="vis">${l.visible?"Hide":"Show"}</button>
@@ -744,6 +745,7 @@ function bindDetailView(l){
   $("#fit").onclick = () => fitList(l);
   showRunTime(l);
   $("#drive").onclick = () => driveRun(l);
+  wireSvcToolbar(l);
   $("#vis").onclick = () => commit(() => { l.visible = !l.visible; }, {view: true});
   $("#dropPin").onclick = () => startPick("Click the map to add a place to “" + l.name + "”", async ll => {
     const p = addPlace(l, {name: "", lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6)});
@@ -1331,6 +1333,29 @@ function timerStart(l, num){ const t = lsGet(TIMERS) || {}; t[tKey(l, num)] = Da
 function timerClear(l, num){ const t = lsGet(TIMERS) || {}; delete t[tKey(l, num)]; lsSet(TIMERS, t); }
 const svcDur = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + " h " : "") + (h || m ? m + " min " : "") + x + " sec"; };
 const fmtClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+// Start service next to Drive: runs the timer for the stop that's going on now, or the next stop not done yet.
+function svcToolbarTarget(l){
+  const t = lsGet(TIMERS) || {}, run = Object.keys(t).find(k => k.startsWith(l.id + "|"));
+  if (run) return run.slice(l.id.length + 1);
+  const done = getDone(l), nums = l.places.map((p, i) => stopNum(p, i));
+  return nums.find(n => !done.has(n)) || nums[0] || "";
+}
+function svcToolbarBtn(l){
+  const num = svcToolbarTarget(l); if (!num) return "";
+  const t0 = timerGet(l, num);
+  return t0 ? `<button class="btn tbtn run" id="svcBtn">■ Stop #${esc(num)} · <span data-tclock="${t0}">${fmtClock(Date.now() - t0)}</span></button>`
+            : `<button class="btn tbtn" id="svcBtn">▶ Start service · #${esc(num)}</button>`;
+}
+function wireSvcToolbar(l){
+  const b = $("#svcBtn"); if (!b) return;
+  const redraw = () => { const w = $("#svcWrap"); if (w){ w.innerHTML = svcToolbarBtn(l); wireSvcToolbar(l); } };
+  b.onclick = () => {
+    const num = svcToolbarTarget(l), i = l.places.findIndex((p, k) => stopNum(p, k) === num); if (i < 0) return;
+    if (!timerGet(l, num)){ timerStart(l, num); toast(`⏱ Service started at stop ${num}: ${l.places[i].name}`, 2500); return redraw(); }
+    const places = l.places.filter((q, k) => stopNum(q, k) === num);
+    doneForm(l, places, num, det => { markDone(l, l.places[i], i, true, det); renderSide(); });
+  };
+}
 function timerBtnHtml(l, num, attrs){
   const t0 = timerGet(l, num);
   return t0 ? `<button ${attrs.replace(/class="([^"]*)"/, 'class="$1 run"')}>■ Stop · <span data-tclock="${t0}">${fmtClock(Date.now() - t0)}</span></button>`
@@ -2209,13 +2234,11 @@ function navBottom(s, meta, extra=""){
       <button class="btn" id="nvSkip">Skip ▶</button>
       <button class="btn" id="nvCenter" ${NAV.follow ? "disabled" : ""}>◎ Recenter</button>
       <button class="btn" id="nvVoice">${NAV.voice ? "🔊" : "🔇"}</button>
-      <button class="btn" id="nvG" title="Open this leg in Google Maps">G</button>
       <button class="btn danger" id="nvEnd">End</button>
     </div>`;
   $("#nvPrev").onclick = () => goStop(-1); $("#nvSkip").onclick = () => goStop(1);
   $("#nvCenter").onclick = () => { NAV.follow = true; NAV.pos && map.setView([NAV.pos.lat, NAV.pos.lng], 17); update(); };
   $("#nvVoice").onclick = () => { NAV.voice = !NAV.voice; lsSet("routemaps:voice", NAV.voice); if (!NAV.voice) try{speechSynthesis.cancel();}catch(e){} update(); };
-  $("#nvG").onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.target.lat},${s.target.lng}&travelmode=driving&dir_action=navigate`, "_blank", "noopener");
   $("#nvEnd").onclick = stopNav;
   const smb = $("#navBot [data-sm]"); // site map chip handled by global listener
   wireDone(s);
