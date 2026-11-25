@@ -20,6 +20,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-rotate@0.6.2/dist/leaflet-rotate.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <style>
   :root{
@@ -424,7 +425,7 @@ const getList = id => S.lists.find(l => l.id === id);
 function findPlace(pid){ for (const l of S.lists){ const i = l.places.findIndex(p => p.id === pid); if (i > -1) return {list: l, place: l.places[i], index: i}; } return null; }
 
 // ---------- map ----------
-const map = L.map("map", {zoomControl: true}).setView([S.view.lat, S.view.lng], S.view.z);
+const map = L.map("map", {zoomControl: true, rotate: true, touchRotate: true, bearing: 0, shiftKeyRotate: true, rotateControl: {closeOnZeroBearing: true, position: "topleft"}}).setView([S.view.lat, S.view.lng], S.view.z);
 const street = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
   {crossOrigin: true, maxZoom: 20, maxNativeZoom: 19, attribution: "Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"});
 const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -2012,6 +2013,7 @@ function navBottom(s, meta, extra=""){
         return `<div style="background:#fef7e0;border:1px solid #f9e29c;color:#7a4f01;border-radius:8px;padding:6px 10px;margin-top:6px;font-weight:600">⚠ Already serviced on this run${v.t ? " at " + fmtT(v.t) : ""}${v.by ? " · " + esc(v.by) : ""}</div>`; })()}
       ${noteOf(s.places[0]) ? `<div class="nav-note">${esc(noteOf(s.places[0]))}</div>` : ""}</div></div>
     ${extra}
+    ${NAV.arrivedAt ? "" : `<div class="row" style="gap:8px;margin:8px 0">${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done</button></div>`}
     <div class="nav-btns">
       <button class="btn" id="nvPrev" title="Previous stop">◀</button>
       <button class="btn" id="nvSkip">Skip ▶</button>
@@ -2026,15 +2028,19 @@ function navBottom(s, meta, extra=""){
   $("#nvG").onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.target.lat},${s.target.lng}&travelmode=driving&dir_action=navigate`, "_blank", "noopener");
   $("#nvEnd").onclick = stopNav;
   const smb = $("#navBot [data-sm]"); // site map chip handled by global listener
+  wireDone(s);
 }
-function navArrived(s){
-  $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
-  navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done, next stop</button></div>`);
+function wireDone(s){
   const np = $("#nvPhoto"); if (np) np.onclick = () => takePhoto(NAV.list, s.target, s.num);
-  $("#nvDone").onclick = () => doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
+  const nd = $("#nvDone"); if (nd) nd.onclick = () => doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
     const n = nextUndone(NAV.idx + 1) >= 0 ? nextUndone(NAV.idx + 1) : nextUndone(0);
     if (n < 0){ say("Route complete"); toast("Route complete. Every stop is done."); stopNav(); return; }
     NAV.idx = n; NAV.arrivedAt = null; NAV.route = null; drawNav(); fetchRoute(); });
+}
+function navArrived(s){
+  $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
+  navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done, next stop</button></div>`);
+  wireDone(s);
 }
 function goStop(d){
   const st = navStops(NAV.list); let i = NAV.idx;
