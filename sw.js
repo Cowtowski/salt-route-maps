@@ -1,7 +1,8 @@
 // Salt Route Maps: offline support.
-const V = "rm-v1", DATA = "rm-data-v1", TILES = "rm-tiles-v1", LIBS = "rm-libs-v1";
+const V = "rm-v2", DATA = "rm-data-v1", TILES = "rm-tiles-v1", LIBS = "rm-libs-v1";
 const LIB_URLS = ["https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"];
+  "https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js",
+  "https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"];
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
     const d = await caches.open(DATA); await d.addAll(["./", "manifest.webmanifest", "icon-192.png"]).catch(() => {});

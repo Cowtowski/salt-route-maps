@@ -20,6 +20,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <style>
   :root{
@@ -206,6 +207,8 @@
   #toast{font-size:15px;padding:12px 18px;border-radius:10px}
   #banner{font-size:15px;padding:10px 14px}
   .leaflet-control-zoom a{width:40px!important;height:40px!important;line-height:40px!important;font-size:20px!important}
+  .leaflet-control-compass a{width:40px!important;height:40px!important;display:grid!important;place-items:center;background:#fff}
+  .leaflet-control-compass svg{transition:transform .15s}
   body.lay-mobile #app{max-width:520px}
   body.lay-mobile .place-actions .icon,body.lay-mobile .place-actions button{min-width:34px;padding:6px 6px}
   body.lay-mobile .place-head{gap:10px;padding:14px 10px 14px 12px}
@@ -430,7 +433,17 @@ const getList = id => S.lists.find(l => l.id === id);
 function findPlace(pid){ for (const l of S.lists){ const i = l.places.findIndex(p => p.id === pid); if (i > -1) return {list: l, place: l.places[i], index: i}; } return null; }
 
 // ---------- map ----------
-const map = L.map("map", {zoomControl: true}).setView([S.view.lat, S.view.lng], S.view.z);
+const map = L.map("map", {zoomControl: true, rotate: true, touchRotate: true, shiftKeyRotate: true, bearing: 0, rotateControl: false}).setView([S.view.lat, S.view.lng], S.view.z);
+// Compass: shows which way is north while the map is turned (two-finger twist, or Shift + drag on a computer). Tap it to face north again.
+const Compass = L.Control.extend({options: {position: "topleft"}, onAdd(m){
+  const c = L.DomUtil.create("div", "leaflet-bar leaflet-control-compass"), a = L.DomUtil.create("a", "", c);
+  a.href = "#"; a.title = "Face north"; a.setAttribute("role", "button"); a.setAttribute("aria-label", "Face north");
+  a.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 2l4 10h-8z" fill="#d93025"/><path d="M12 22l-4-10h8z" fill="#9aa0a6"/></svg>';
+  L.DomEvent.disableClickPropagation(c);
+  L.DomEvent.on(a, "click", e => { L.DomEvent.preventDefault(e); m.setBearing(0); });
+  const turn = () => { a.firstChild.style.transform = `rotate(${-(m.getBearing() || 0)}deg)`; };
+  m.on("rotate", turn); turn(); return c; }});
+new Compass().addTo(map);
 const street = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
   {crossOrigin: true, maxZoom: 20, maxNativeZoom: 19, attribution: "Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"});
 const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -971,7 +984,7 @@ async function openDrivers(){
   $("#dvClose").onclick = () => d.close(); $("#dvAdd").onclick = () => editDriver(null);
   const j = await adminApi("drivers.list"); if (!$("#dvBody")) return;
   if (!j || !j.ok){ $("#dvBody").innerHTML = `<p style="color:var(--danger)">${esc(apiErr(j) || "Cancelled.")}</p>`; return; }
-  DRIVERS = j.drivers || [];
+  DRIVERS = (j.drivers || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, {sensitivity: "base", numeric: true}));
   $("#dvBody").innerHTML = DRIVERS.length ? `<div style="max-height:55vh;overflow:auto">${DRIVERS.map((x, i) => `
     <div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">${esc(x.name)}</b>
@@ -2123,7 +2136,7 @@ function navBottom(s, meta, extra=""){
         const mi = getMissed(NAV.list, s.num) || v.missed;
         return `<div style="background:#fef7e0;border:1px solid #f9e29c;color:#7a4f01;border-radius:8px;padding:6px 10px;margin-top:6px;font-weight:600">⚠ ${mi ? "Partly serviced" : "Already serviced"} on this run${v.t ? " at " + fmtT(v.t) : ""}${v.by ? " · " + esc(v.by) : ""}${mi ? `<br><span style="font-weight:500">Not done: ${esc(mi)}</span>` : ""}</div>`; })()}
       ${noteOf(s.places[0]) ? `<div class="nav-note">${esc(noteOf(s.places[0]))}</div>` : ""}</div></div>
-    ${extra}
+    ${extra.includes('id="nvDone"') ? extra : extra + navActs()}
     <div class="nav-btns">
       <button class="btn" id="nvPrev" title="Previous stop">◀</button>
       <button class="btn" id="nvSkip">Skip ▶</button>
@@ -2137,13 +2150,18 @@ function navBottom(s, meta, extra=""){
   $("#nvVoice").onclick = () => { NAV.voice = !NAV.voice; lsSet("routemaps:voice", NAV.voice); if (!NAV.voice) try{speechSynthesis.cancel();}catch(e){} update(); };
   $("#nvG").onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${s.target.lat},${s.target.lng}&travelmode=driving&dir_action=navigate`, "_blank", "noopener");
   $("#nvEnd").onclick = stopNav;
+  const np = $("#nvPhoto"); if (np) np.onclick = () => takePhoto(NAV.list, s.target, s.num);
+  const nd = $("#nvDone"); if (nd) nd.onclick = () => navDone(s);
   const smb = $("#navBot [data-sm]"); // site map chip handled by global listener
 }
 function navArrived(s){
   $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
   navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done, next stop</button></div>`);
-  const np = $("#nvPhoto"); if (np) np.onclick = () => takePhoto(NAV.list, s.target, s.num);
-  $("#nvDone").onclick = () => doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num, Date.now(), "", det.missed || ""); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
+}
+// ✓ Done and 📷 stay available the whole time in Drive mode, not only on arrival
+function navActs(){ return `<div class="row" style="gap:8px;margin:8px 0">${logUrl() ? `<button class="btn" id="nvPhoto" title="Take or upload a photo">📷</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done, next stop</button></div>`; }
+function navDone(s){
+  doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num, Date.now(), "", det.missed || ""); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
     const n = nextUndone(NAV.idx + 1) >= 0 ? nextUndone(NAV.idx + 1) : nextUndone(0);
     if (n < 0){ say("Route complete"); toast("Route complete. Every stop is done."); stopNav(); return; }
     NAV.idx = n; NAV.arrivedAt = null; NAV.route = null; drawNav(); fetchRoute(); });
