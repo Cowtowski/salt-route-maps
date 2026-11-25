@@ -1333,40 +1333,27 @@ function timerStart(l, num){ const t = lsGet(TIMERS) || {}; t[tKey(l, num)] = Da
 function timerClear(l, num){ const t = lsGet(TIMERS) || {}; delete t[tKey(l, num)]; lsSet(TIMERS, t); }
 const svcDur = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + " h " : "") + (h || m ? m + " min " : "") + x + " sec"; };
 const fmtClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
-// Start Service next to Drive: asks which stop, then times it. While running it shows Stop #n with the time.
-const svcRunning = l => { const t = lsGet(TIMERS) || {}, k = Object.keys(t).find(k => k.startsWith(l.id + "|")); return k ? k.slice(l.id.length + 1) : ""; };
+// Start service next to Drive: runs the timer for the stop that's going on now, or the next stop not done yet.
+function svcToolbarTarget(l){
+  const t = lsGet(TIMERS) || {}, run = Object.keys(t).find(k => k.startsWith(l.id + "|"));
+  if (run) return run.slice(l.id.length + 1);
+  const done = getDone(l), nums = l.places.map((p, i) => stopNum(p, i));
+  return nums.find(n => !done.has(n)) || nums[0] || "";
+}
 function svcToolbarBtn(l){
-  if (!l.places.length) return "";
-  const num = svcRunning(l), t0 = num && timerGet(l, num);
+  const num = svcToolbarTarget(l); if (!num) return "";
+  const t0 = timerGet(l, num);
   return t0 ? `<button class="btn tbtn run" id="svcBtn">■ Stop #${esc(num)} · <span data-tclock="${t0}">${fmtClock(Date.now() - t0)}</span></button>`
-            : `<button class="btn tbtn" id="svcBtn">▶ Start Service</button>`;
+            : `<button class="btn tbtn" id="svcBtn">▶ Start service · #${esc(num)}</button>`;
 }
 function wireSvcToolbar(l){
   const b = $("#svcBtn"); if (!b) return;
   const redraw = () => { const w = $("#svcWrap"); if (w){ w.innerHTML = svcToolbarBtn(l); wireSvcToolbar(l); } };
   b.onclick = () => {
-    const run = svcRunning(l);
-    if (run){
-      const i = l.places.findIndex((p, k) => stopNum(p, k) === run); if (i < 0){ timerClear(l, run); return redraw(); }
-      const places = l.places.filter((q, k) => stopNum(q, k) === run);
-      return doneForm(l, places, run, det => { markDone(l, l.places[i], i, true, det); renderSide(); });
-    }
-    // ask where to start
-    const done = getDone(l), seen = new Set(), stops = [];
-    l.places.forEach((p, i) => { const n = stopNum(p, i); if (seen.has(n)) return; seen.add(n); stops.push({n, i, p}); });
-    const next = (stops.find(x => !done.has(x.n)) || {}).n;
-    $("#dlgBody").innerHTML = `<h3>▶ Start Service</h3><p style="margin-top:0">Where are you starting?</p>
-      <div style="max-height:56vh;overflow:auto;border:1px solid var(--line);border-radius:12px">${stops.map(x => `
-        <button type="button" data-svpick="${esc(x.n)}" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:${x.n === next ? "#e6f4ea" : "#fff"};border:0;border-bottom:1px solid #f0f2f5;padding:12px;font:inherit;cursor:pointer">
-          <span style="flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;background:${done.has(x.n) ? "#188038" : l.color}">${done.has(x.n) ? "✓" : esc(x.n)}</span>
-          <span style="flex:1;min-width:0"><b>#${esc(x.n)} ${esc(x.p.name)}</b>${x.n === next ? ` <small style="color:#188038;font-weight:700">· next</small>` : ""}<small style="display:block;color:#6b7385">${esc(x.p.address || "")}${done.has(x.n) ? " · already done" : ""}</small></span>
-        </button>`).join("")}</div>
-      <footer><button class="btn" id="svCancel">Cancel</button></footer>`;
-    const d = $("#dlg"); if (!d.open) d.showModal();
-    $("#svCancel").onclick = () => d.close();
-    $("#dlgBody").querySelectorAll("[data-svpick]").forEach(x => x.onclick = () => { const n = x.dataset.svpick, st = stops.find(s => s.n === n);
-      d.close(); timerStart(l, n); toast(`⏱ Service started at stop ${n}: ${st.p.name}`, 2500); redraw(); });
-    const nb = $("#dlgBody").querySelector(`[data-svpick="${next}"]`); if (nb) nb.scrollIntoView({block: "nearest"});
+    const num = svcToolbarTarget(l), i = l.places.findIndex((p, k) => stopNum(p, k) === num); if (i < 0) return;
+    if (!timerGet(l, num)){ timerStart(l, num); toast(`⏱ Service started at stop ${num}: ${l.places[i].name}`, 2500); return redraw(); }
+    const places = l.places.filter((q, k) => stopNum(q, k) === num);
+    doneForm(l, places, num, det => { markDone(l, l.places[i], i, true, det); renderSide(); });
   };
 }
 function timerBtnHtml(l, num, attrs){
