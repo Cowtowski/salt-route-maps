@@ -996,7 +996,7 @@ const apiErr = j => !j ? "" : j.error === "offline" ? "Couldn't reach your Googl
   j.error === "not admin" ? "The Google Sheet script doesn't have the new admin password yet. Update Code.gs (see instructions)." :
   j.error === "pin taken" ? "Another driver already uses that PIN." : j.error === "bad pin format" ? "PINs need at least 6 letters or numbers." :
   /Unknown action|undefined/.test(j.error || "") ? "Your Google Sheet script is out of date. Paste in the new Code.gs and deploy a new version." : (j.error || "Something went wrong.");
-let DRIVERS = [], GUESTS = [], GUEST_FREE = 0, DV_TAB = "drivers";
+let DRIVERS = [], GUESTS = [], GUEST_FREE = 0, DV_TAB = "drivers", SHEET_V = 0;   // SHEET_V 2 = Google Sheet script with guest passes + single properties
 // Stops of a run in order: [{num, name}]
 const runStops = l => { const seen = new Map(); l.places.forEach((p, i) => { const n = stopNum(p, i); if (!seen.has(n)) seen.set(n, p.name || p.address || "Stop " + n); }); return [...seen].map(([num, name]) => ({num, name})); };
 // What someone can see, as text: "Run A · Run B (3 of 21 stops)"
@@ -1008,56 +1008,85 @@ const accessPlain = (runs, stops) => runs.map(id => { const l = getList(id), pic
 const sharedLists = (runs, stops) => runs.map(getList).filter(Boolean).map(l => { const pick = stops && stops[l.id]; if (!pick) return l;
   const set = new Set(pick); return {...l, places: l.places.filter((p, i) => set.has(stopNum(p, i)))}; });
 const fmtWhen = t => new Date(t).toLocaleString([], {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
+let DV_Q = "", DV_SORT = "az";
 async function openDrivers(tab){
   if (!ADMIN) return;
   if (!logUrl()) return toast("Set up the completion log first (File → ⚙ Settings). Drivers are kept in that Google Sheet.", 5000);
-  if (tab) DV_TAB = tab;
+  if (tab && tab !== DV_TAB){ DV_TAB = tab; DV_Q = ""; }
+  const G = DV_TAB === "guests";
   const tabBtn = (k, label) => `<button class="btn ${DV_TAB === k ? "primary" : ""}" data-dvtab="${k}" style="flex:1;justify-content:center">${label}</button>`;
+  const fld = "box-sizing:border-box;font-size:16px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;min-height:42px";
   $("#dlgBody").innerHTML = `<h3>👥 Drivers</h3>
-    <div class="row" style="gap:8px;margin-bottom:6px">${tabBtn("drivers", "👥 Drivers")}${tabBtn("guests", "🎫 Guest passes")}</div>
+    <div class="row" style="gap:8px;margin-bottom:8px">${tabBtn("drivers", "👥 Drivers")}${tabBtn("guests", "🎫 Guests")}</div>
+    <div class="row" style="gap:8px;margin-bottom:4px;flex-wrap:nowrap">
+      <input id="dvQ" type="search" value="${esc(DV_Q)}" placeholder="🔍 Search ${G ? "guests" : "drivers"}" style="${fld};flex:1;min-width:0">
+      <select id="dvSort" title="Sort" style="${fld};flex:none;max-width:42%">
+        <option value="az">A → Z</option><option value="za">Z → A</option><option value="new">Newest</option><option value="old">Oldest</option>
+      </select></div>
     <div id="dvBody"><p>Loading…</p></div>
-    <footer><button class="btn" id="dvClose">Close</button><button class="btn primary" id="dvAdd">${DV_TAB === "guests" ? "＋ Add guest" : "＋ Add driver"}</button></footer>`;
+    <footer><button class="btn" id="dvClose">Close</button><button class="btn primary" id="dvAdd">${G ? "＋ Add guest" : "＋ Add driver"}</button></footer>`;
   const d = $("#dlg"); if (!d.open) d.showModal();
+  $("#dvSort").value = DV_SORT;
   $("#dlgBody").querySelectorAll("[data-dvtab]").forEach(b => b.onclick = () => openDrivers(b.dataset.dvtab));
   $("#dvClose").onclick = () => d.close();
-  $("#dvAdd").onclick = () => DV_TAB === "guests" ? (GUEST_FREE > 0 ? editAccess("guest", null) : toast("All 100 guest passes are in use. End one first.", 4000)) : editAccess("driver", null);
-  const card = (inner) => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">${inner}</div>`;
-  if (DV_TAB === "guests"){
-    const j = await adminApi("guests.list"); if (!$("#dvBody")) return;
+  $("#dvAdd").onclick = () => G ? (GUEST_FREE > 0 ? editAccess("guest", null) : toast("All 100 guest PINs are in use. End a guest first.", 4000)) : editAccess("driver", null);
+  const card = inner => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">${inner}</div>`;
+  // search + sort; items keep their position in the original list (i) for the buttons
+  const shown = (arr, pinOf, whenOf) => {
+    const q = DV_Q.trim().toLowerCase();
+    let v = arr.map((x, i) => ({x, i})).filter(({x}) => !q || [x.name, pinOf(x), ...accessPlain(x.runs, x.stops)].join(" ").toLowerCase().includes(q));
+    const byName = (a, b) => String(a.x.name).localeCompare(String(b.x.name), undefined, {sensitivity: "base"});
+    if (DV_SORT === "az") v.sort(byName); else if (DV_SORT === "za") v.sort((a, b) => byName(b, a));
+    else v.sort((a, b) => (whenOf(a) - whenOf(b)) * (DV_SORT === "new" ? -1 : 1));
+    return v;
+  };
+  let draw = () => {};
+  $("#dvQ").oninput = () => { DV_Q = $("#dvQ").value; draw(); };
+  $("#dvSort").onchange = () => { DV_SORT = $("#dvSort").value; draw(); };
+  const none = n => `<p style="color:#6b7385">No ${n} match “${esc(DV_Q)}”.</p>`;
+  if (G){
+    const j = await adminApi("guests.list"); if (!$("#dvBody") || DV_TAB !== "guests") return;
+    if (j && j.error === "Unknown action"){ GUEST_FREE = 0; $("#dvBody").innerHTML = `<p>Guests need the updated Google Sheet script. When you can, paste the new <b>Code.gs</b> into the sheet's Apps Script and deploy a new version. Everything else works without it.</p>`; return; }
     if (!j || !j.ok){ $("#dvBody").innerHTML = `<p style="color:var(--danger)">${esc(apiErr(j) || "Cancelled.")}</p>`; return; }
     GUESTS = j.guests || []; GUEST_FREE = j.free || 0;
-    const now = Date.now();
-    $("#dvBody").innerHTML = `<p style="font-size:14px;color:#3c4352;margin:4px 0">For people helping out who aren't on the regular team. There are 100 ready-made guest PINs: tap <b>＋ Add guest</b>, type their name and pick what they can see. <b>${GUEST_FREE}</b> of 100 free.</p>
-      ${GUESTS.length ? `<div style="max-height:50vh;overflow:auto">${GUESTS.map((x, i) => { const over = x.expires && x.expires < now;
-        return card(`<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">🎫 ${esc(x.name)}</b>
-          <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(x.code)}</span></div>
-          <small style="display:block;margin:2px 0;color:${over ? "var(--danger)" : "#6b7385"}">${over ? "Ended " + fmtWhen(x.expires) + " (PIN no longer works)" : x.expires ? "Works until " + fmtWhen(x.expires) : "Works until you end it"}</small>
-          <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? accessText(x.runs, x.stops) : "<i>Nothing assigned</i>"}</small>
-          <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-gedit="${i}" style="min-height:36px">✏️ Edit</button>
-          <button class="btn" data-gsend="${i}" style="min-height:36px">📤 Send sign-in</button>
-          <button class="btn danger" data-gend="${i}" style="min-height:36px">⏹ End pass</button></div>`); }).join("")}</div>` : `<p>No guests right now.</p>`}`;
-    $("#dvBody").querySelectorAll("[data-gedit]").forEach(b => b.onclick = () => editAccess("guest", GUESTS[+b.dataset.gedit]));
-    $("#dvBody").querySelectorAll("[data-gend]").forEach(b => b.onclick = () => endGuest(GUESTS[+b.dataset.gend]));
-    $("#dvBody").querySelectorAll("[data-gsend]").forEach(b => b.onclick = () => { const x = GUESTS[+b.dataset.gsend];
-      SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.code, name: x.name}; openShareDialog(); });
-    return;
+    draw = () => {
+      const now = Date.now(), v = shown(GUESTS, x => x.code, o => o.x.updated || 0);
+      $("#dvBody").innerHTML = `<p style="font-size:14px;color:#3c4352;margin:4px 0">For people helping out who aren't on the regular team. There are 100 ready-made guest PINs: tap <b>＋ Add guest</b>, type their name and pick what they can see. <b>${GUEST_FREE}</b> of 100 free.</p>
+        ${!GUESTS.length ? `<p>No guests right now.</p>` : !v.length ? none("guests") : `<div style="max-height:46vh;overflow:auto">${v.map(({x, i}) => { const over = x.expires && x.expires < now;
+          return card(`<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">🎫 ${esc(x.name)}</b>
+            <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(x.code)}</span></div>
+            <small style="display:block;margin:2px 0;color:${over ? "var(--danger)" : "#6b7385"}">${over ? "Ended " + fmtWhen(x.expires) + " (PIN no longer works)" : x.expires ? "Works until " + fmtWhen(x.expires) : "Works until you end it"}</small>
+            <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? accessText(x.runs, x.stops) : "<i>Nothing assigned</i>"}</small>
+            <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-gedit="${i}" style="min-height:36px">✏️ Edit</button>
+            <button class="btn" data-gsend="${i}" style="min-height:36px">📤 Send sign-in</button>
+            <button class="btn danger" data-gend="${i}" style="min-height:36px">⏹ End guest</button></div>`); }).join("")}</div>`}`;
+      $("#dvBody").querySelectorAll("[data-gedit]").forEach(b => b.onclick = () => editAccess("guest", GUESTS[+b.dataset.gedit]));
+      $("#dvBody").querySelectorAll("[data-gend]").forEach(b => b.onclick = () => endGuest(GUESTS[+b.dataset.gend]));
+      $("#dvBody").querySelectorAll("[data-gsend]").forEach(b => b.onclick = () => { const x = GUESTS[+b.dataset.gsend];
+        SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.code, name: x.name}; openShareDialog(); });
+    };
+    return draw();
   }
-  const j = await adminApi("drivers.list"); if (!$("#dvBody")) return;
+  const j = await adminApi("drivers.list"); if (!$("#dvBody") || DV_TAB !== "drivers") return;
   if (!j || !j.ok){ $("#dvBody").innerHTML = `<p style="color:var(--danger)">${esc(apiErr(j) || "Cancelled.")}</p>`; return; }
-  DRIVERS = j.drivers || [];
-  $("#dvBody").innerHTML = DRIVERS.length ? `<div style="max-height:52vh;overflow:auto">${DRIVERS.map((x, i) => card(`
-      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">${esc(x.name)}</b>
-        <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(x.pin)}</span></div>
-      <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? accessText(x.runs, x.stops) : "<i>No runs assigned</i>"}</small>
-      <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-dvedit="${i}" style="min-height:36px">✏️ Edit</button>
-        <button class="btn" data-dvsend="${i}" style="min-height:36px">📤 Send sign-in</button>
-        <button class="btn danger" data-dvdel="${i}" style="min-height:36px">🗑 Delete</button></div>`)).join("")}</div>
-    <p style="font-size:13.5px;color:#6b7385">Changes apply right away. A driver's phone picks them up the next time the app opens, or within 2 minutes.</p>`
-    : `<p>No drivers yet. Tap <b>＋ Add driver</b> to create one with their own PIN.</p>`;
-  $("#dvBody").querySelectorAll("[data-dvedit]").forEach(b => b.onclick = () => editAccess("driver", DRIVERS[+b.dataset.dvedit]));
-  $("#dvBody").querySelectorAll("[data-dvdel]").forEach(b => b.onclick = () => deleteDriver(DRIVERS[+b.dataset.dvdel]));
-  $("#dvBody").querySelectorAll("[data-dvsend]").forEach(b => b.onclick = () => { const x = DRIVERS[+b.dataset.dvsend];
-    SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.pin, name: x.name}; openShareDialog(); });
+  DRIVERS = j.drivers || []; SHEET_V = j.v || 1;
+  draw = () => {
+    const v = shown(DRIVERS, x => x.pin, o => o.i);   // sheet order = order they were added
+    $("#dvBody").innerHTML = !DRIVERS.length ? `<p>No drivers yet. Tap <b>＋ Add driver</b> to create one with their own PIN.</p>` : !v.length ? none("drivers")
+      : `<div style="max-height:48vh;overflow:auto">${v.map(({x, i}) => card(`
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">${esc(x.name)}</b>
+          <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(x.pin)}</span></div>
+        <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? accessText(x.runs, x.stops) : "<i>No runs assigned</i>"}</small>
+        <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-dvedit="${i}" style="min-height:36px">✏️ Edit</button>
+          <button class="btn" data-dvsend="${i}" style="min-height:36px">📤 Send sign-in</button>
+          <button class="btn danger" data-dvdel="${i}" style="min-height:36px">🗑 Delete</button></div>`)).join("")}</div>
+      <p style="font-size:13.5px;color:#6b7385">${v.length < DRIVERS.length ? `Showing ${v.length} of ${DRIVERS.length}. ` : ""}Changes apply right away. A driver's phone picks them up the next time the app opens, or within 2 minutes.</p>`;
+    $("#dvBody").querySelectorAll("[data-dvedit]").forEach(b => b.onclick = () => editAccess("driver", DRIVERS[+b.dataset.dvedit]));
+    $("#dvBody").querySelectorAll("[data-dvdel]").forEach(b => b.onclick = () => deleteDriver(DRIVERS[+b.dataset.dvdel]));
+    $("#dvBody").querySelectorAll("[data-dvsend]").forEach(b => b.onclick = () => { const x = DRIVERS[+b.dataset.dvsend];
+      SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.pin, name: x.name}; openShareDialog(); });
+  };
+  draw();
 }
 // Add / edit a driver or a guest: name, PIN (drivers) or end time (guests), and which runs or single properties they see.
 function editAccess(kind, x){
@@ -1072,7 +1101,7 @@ function editAccess(kind, x){
     <input id="dvName" value="${esc(x ? x.name : "")}" placeholder="${guest ? "First & last name" : "e.g. Caleb"}" style="${fld};margin:4px 0 12px">
     ${guest ? `<label style="display:block;font-weight:600">Guest PIN</label>
       <div style="font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;margin:4px 0 12px;color:#174ea6">${x ? esc(x.code) : "<span style='font:400 15px system-ui;color:#6b7385'>Picked from the ready-made guest PINs when you save</span>"}</div>
-      <label style="display:block;font-weight:600">Pass works</label>
+      <label style="display:block;font-weight:600">Access ends</label>
       <select id="gEnd" style="${fld};margin:4px 0 12px">${x && x.expires ? `<option value="keep" selected>Until ${esc(fmtWhen(x.expires))} (no change)</option>` : ""}${endOpts.map(([v, t]) => `<option value="${v}" ${x && !x.expires && v === "" ? "selected" : ""}>${t}</option>`).join("")}</select>`
     : `<label style="display:block;font-weight:600">PIN <small style="font-weight:400;color:#6b7385">(at least 6 letters or numbers, their own)</small></label>
       <div class="row" style="gap:8px;margin:4px 0 12px"><input id="dvPin" value="${esc(x ? x.pin : suggest())}" autocapitalize="characters" spellcheck="false" style="${fld};flex:1;font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase">
@@ -1117,6 +1146,8 @@ function editAccess(kind, x){
     if (!name) return ($("#dvErr").textContent = guest ? "Type the guest's name." : "Type the driver's name.");
     let pin = "";
     if (!guest){ pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (pin.length < 6) return ($("#dvErr").textContent = "PINs need at least 6 letters or numbers."); }
+    if (Object.keys(stops).length && SHEET_V < 2)
+      return ($("#dvErr").innerHTML = "Giving single properties needs the updated Google Sheet script (<b>Code.gs</b>). Until then, tick whole runs.");
     if (Object.keys(stops).length && (window.__RUNS_V || 1) < 2)
       return ($("#dvErr").innerHTML = "To share single properties, publish once first: <b>File → ⬆ Publish to site</b>, upload <b>runs.enc</b> to GitHub, then reopen the app. After that, no more uploads are needed for this.");
     const ak = await getAdminKeys(); if (!ak) return;
@@ -1131,20 +1162,20 @@ function editAccess(kind, x){
         : v === "24h" ? now.getTime() + 864e5 : v === "3d" ? now.getTime() + 3 * 864e5 : v === "7d" ? now.getTime() + 7 * 864e5 : 0;
       j = await adminApi("guests.save", {guest: {code: x ? x.code : "", name, runs, stops, runNames, keys, expires}});
     } else j = await adminApi("drivers.save", {driver: {id: x ? x.id : "", name, pin, runs, stops, runNames, keys}});
-    if (!j || !j.ok){ $("#dvSave").disabled = false; $("#dvSave").textContent = "Save"; $("#dvErr").textContent = j && j.error === "no free guest" ? "All 100 guest passes are in use. End one first." : apiErr(j); return; }
-    if (guest && !x){ toast(`Guest pass ready for ${name}: PIN ${j.code}`, 5000);
+    if (!j || !j.ok){ $("#dvSave").disabled = false; $("#dvSave").textContent = "Save"; $("#dvErr").textContent = j && j.error === "no free guest" ? "All 100 guest PINs are in use. End a guest first." : apiErr(j); return; }
+    if (guest && !x){ toast(`${name} is set up as a guest: PIN ${j.code}`, 5000);
       SHARE_CTX = {lists: sharedLists(runs, stops), link: HOSTED, pin: j.code, name}; DV_TAB = "guests"; return openShareDialog(); }
     toast(`${name} saved. Their phone updates automatically.`, 3000); openDrivers();
   };
 }
 function endGuest(x){
-  $("#dlgBody").innerHTML = `<h3>⏹ End ${esc(x.name)}'s guest pass?</h3>
+  $("#dlgBody").innerHTML = `<h3>⏹ End ${esc(x.name)}'s guest access?</h3>
     <p>PIN <b>${esc(x.code)}</b> stops working right away, and that slot gets a brand-new PIN for the next guest. Their phone loses access within 2 minutes.</p>
     <p style="font-size:14px;color:#6b7385">Their recorded stops stay in the spreadsheet.</p>
-    <footer><button class="btn" id="geNo">Cancel</button><button class="btn danger" id="geYes">End pass</button></footer>`;
+    <footer><button class="btn" id="geNo">Cancel</button><button class="btn danger" id="geYes">End guest</button></footer>`;
   $("#geNo").onclick = () => openDrivers("guests");
   $("#geYes").onclick = async () => { $("#geYes").disabled = true; const j = await adminApi("guests.end", {code: x.code});
-    if (!j || !j.ok) toast(apiErr(j) || "Couldn't end the pass", 4000); else toast(x.name + "'s pass ended"); openDrivers("guests"); };
+    if (!j || !j.ok) toast(apiErr(j) || "Couldn't end guest access", 4000); else toast(x.name + "'s guest access ended"); openDrivers("guests"); };
 }
 function deleteDriver(x){
   $("#dlgBody").innerHTML = `<h3>🗑 Delete ${esc(x.name)}?</h3>
@@ -2365,7 +2396,7 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
     else if (stored.pin){
       const j = await driverLogin(stored.pin, "Opened the app");
       if (j && j.ok){ const a = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin: stored.pin, runs: j.runs || [], signedAt: Date.now()}; store(a); await openWith(a); return run(); }
-      if (j && !j.ok && (j.error === "bad pin" || j.error === "expired")) store(null);   // removed, PIN changed or guest pass ended
+      if (j && !j.ok && (j.error === "bad pin" || j.error === "expired")) store(null);   // removed, PIN changed or guest access ended
       else { await openWith({...stored, offline: true, signedAt: Date.now()}); return run(); }        // no signal: use what this phone already has
     }
   }
@@ -2397,7 +2428,7 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
         const pin = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
         const j = pin ? await driverLogin(pin, "Signed in with PIN") : null;
         if (!j) err.textContent = "Couldn't reach the office. Check your signal and try again.";
-        else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : j.error === "expired" ? "This guest pass has ended. Ask the office for a new one." : "That PIN isn't right. Check it and try again.";
+        else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : j.error === "expired" ? "Your guest access has ended. Ask the office for a new PIN." : "That PIN isn't right. Check it and try again.";
         else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || [], signedAt: Date.now()}; store(acc); await openWith(acc); okd = true; }
       } else {
         if (await adminOpen(inp.value)){ store({role: "admin", pw: inp.value}); okd = true; } else err.textContent = "Wrong password.";
