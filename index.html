@@ -2097,7 +2097,11 @@ async function startNav(l){
   if (!navigator.geolocation){ toast("This browser can't use GPS"); return; }
   NAV.runt = null; runTime(l).then(r => { NAV.runt = r; }).catch(() => {});
   NAV.list = l; NAV.on = true; NAV.route = null; NAV.follow = true; NAV.spoken = {}; NAV.arrivedAt = null;
-  let i = nextUndone(0); if (i < 0){ NAV.on = false; toast("Every stop on this run is already done.", 3000); return; }
+  // a property the user just tapped (pin or list) is where Drive starts; otherwise the next stop not done
+  const picked = ui.selPlace ? navStops(l).findIndex(st => st.target && st.places.some(p => p.id === ui.selPlace)) : -1;
+  let i = picked >= 0 ? picked : nextUndone(0);
+  if (picked >= 0){ ui.selPlace = null; toast("Starting at stop " + navStops(l)[picked].num + ", the property you selected", 3000); }
+  if (i < 0){ NAV.on = false; toast("Every stop on this run is already done.", 3000); return; }
   NAV.idx = i; document.body.classList.add("navmode"); NAV.layer.addTo(map);
   ui.openList = l.id; render({noFit: true}); setTimeout(() => map.invalidateSize(), 60);
   navUI("Finding your location…");
