@@ -212,15 +212,20 @@
   body.lay-mobile header .spacer{display:none}
   @media (max-width:760px){ body:not(.lay-desktop) .place-actions button{min-width:34px;padding:6px} body:not(.lay-desktop) header .spacer{display:none} }
   @media (max-width:760px){
-    body:not(.lay-desktop) main{grid-template-columns:1fr;grid-template-rows:30vh 1fr}
+    body:not(.lay-desktop) main{grid-template-columns:1fr;grid-template-rows:var(--maph,30vh) 1fr}
     body:not(.lay-desktop) .mapwrap{order:1}
     body:not(.lay-desktop) aside{order:2;border-right:none;border-top:1px solid var(--line)}
   }
-  body.lay-mobile main{grid-template-columns:1fr;grid-template-rows:30vh 1fr}
+  body.lay-mobile main{grid-template-columns:1fr;grid-template-rows:var(--maph,30vh) 1fr}
   body.lay-mobile .mapwrap{order:1}
   body.lay-mobile aside{order:2;border-right:none;border-top:1px solid var(--line)}
   body.lay-mobile #app{max-width:480px;margin:0 auto;box-shadow:0 0 0 1px var(--line)}
   .menu-pop .chk{display:inline-block;width:16px;color:var(--accent)}
+  #mapGrip{display:none;position:absolute;left:0;right:0;bottom:0;height:26px;z-index:1200;cursor:ns-resize;touch-action:none;align-items:center;justify-content:center;background:linear-gradient(transparent,rgba(255,255,255,.85))}
+  #mapGrip span{display:block;width:56px;height:6px;border-radius:3px;background:#5f6368;box-shadow:0 0 0 2px #fff}
+  body.lay-mobile #mapGrip{display:flex}
+  @media (max-width:760px){ body:not(.lay-desktop) #mapGrip{display:flex} }
+  body.mapcollapsed #mapGrip,.navmode #mapGrip{display:none!important}
   /* mobile header: everything centered and on screen */
   body.lay-mobile header{justify-content:center;position:relative;row-gap:8px}
   body.lay-mobile #mapTitle{flex:1 1 100%;text-align:center;min-width:0}
@@ -232,7 +237,6 @@
     body:not(.lay-desktop) header .menu{position:static}
     body:not(.lay-desktop) header .menu-pop{left:50%;right:auto;transform:translateX(-50%);top:calc(100% + 4px);width:min(340px,calc(100vw - 16px));min-width:0;max-height:70vh;overflow:auto}
   }
-  html,body{max-width:100%;overflow-x:hidden}
   body.lay-mobile #mapTitle{width:100%}
   body.lay-mobile .toolbar{justify-content:center}
   @media (max-width:760px){ body:not(.lay-desktop) .toolbar{justify-content:center} }
@@ -324,6 +328,7 @@
       <div id="banner"><span id="bannerText">Click the map to drop a pin</span><button id="bannerCancel">Cancel</button></div>
       <div id="map"></div>
       <div id="navTop"></div><div id="navBot"></div>
+      <div id="mapGrip" title="Drag to resize the map"><span></span></div>
     </div>
   </main>
 </div>
@@ -821,7 +826,7 @@ function applyCrew(){ document.body.classList.toggle("crew", !!CREW_PW); }
 function crewSignIn(then){
   $("#dlgBody").innerHTML = `<h3>🔓 Crew sign-in</h3>
     <p>Shows lockbox, gate and alarm codes and contact numbers, and lets you log completed stops. Use the crew password from the office.</p>
-    <form id="crForm"><input id="crPw" type="password" autocomplete="current-password" placeholder="Crew password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
+    <form id="crForm"><input id="crPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Crew password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
     <p id="crErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
     <footer><button class="btn" type="button" id="crCancel">Cancel</button><button class="btn primary" type="submit">Sign in</button></footer></form>`;
   const d = $("#dlg"); if (!d.open) d.showModal(); $("#crPw").focus();
@@ -865,7 +870,7 @@ let KEYS_DIRTY = false, RESAVE_DRIVERS = false;
 function askAdminPw(why){
   return new Promise(resolve => {
     $("#dlgBody").innerHTML = `<h3>🔑 Admin password</h3><p>${esc(why)}</p>
-      <form id="apForm"><input id="apPw" type="password" autocomplete="current-password" placeholder="Admin password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
+      <form id="apForm"><input id="apPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
       <p id="apErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
       <footer><button class="btn" type="button" id="apCancel">Cancel</button><button class="btn primary" type="submit">OK</button></footer></form>`;
     const d = $("#dlg"); if (!d.open) d.showModal(); $("#apPw").focus();
@@ -1387,7 +1392,7 @@ const fmtStamp = t => new Date(t).toLocaleString([], {month: "short", day: "nume
 function adminSignIn(){
   $("#dlgBody").innerHTML = `<h3>🔑 Admin sign-in</h3>
     <p>Admins can change routes, pins and info on this device. Everyone else can view, drive and share only.</p>
-    <form id="adForm"><input id="adPw" type="password" autocomplete="current-password" placeholder="Admin password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
+    <form id="adForm"><input id="adPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
     <p id="adErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
     <footer><button class="btn" type="button" id="adCancel">Cancel</button><button class="btn primary" type="submit">Sign in</button></footer></form>`;
   const d = $("#dlg"); if (!d.open) d.showModal(); $("#adPw").focus();
@@ -1411,6 +1416,16 @@ function setMapHidden(h){
 }
 $("#mapToggle").onclick = () => setMapHidden(!document.body.classList.contains("mapcollapsed"));
 setMapHidden(!!lsGet("routemaps:mapHidden"));
+(function(){ // drag the bar under the map to make it taller or shorter (phone layout)
+  const g = $("#mapGrip"), setH = px => { const vh = innerHeight, h = Math.max(120, Math.min(vh * 0.8, px)); document.body.style.setProperty("--maph", Math.round(h) + "px"); return h; };
+  const saved = +lsGet("routemaps:mapH"); if (saved) setH(saved);
+  let y0 = 0, h0 = 0, dragging = false;
+  g.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); dragging = true; y0 = e.clientY; h0 = $(".mapwrap").getBoundingClientRect().height; g.setPointerCapture(e.pointerId); });
+  g.addEventListener("pointermove", e => { if (!dragging) return; setH(h0 + e.clientY - y0); map.invalidateSize(); });
+  const end = () => { if (!dragging) return; dragging = false; lsSet("routemaps:mapH", Math.round($(".mapwrap").getBoundingClientRect().height)); map.invalidateSize(); };
+  g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
+  ["mousedown","touchstart","click","dblclick"].forEach(t => g.addEventListener(t, e => e.stopPropagation()));
+})();
 $("#lineToggle").onchange = e => commit(() => { S.showLines = e.target.checked; }, {view: true});
 document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); undo(); }
@@ -2173,12 +2188,12 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
     const head = `<div style="font-size:46px;line-height:1">${mode === "admin" ? "🔒" : "🔑"}</div><h2 style="margin:8px 0 4px;font-size:22px">${meta.title || "SALT Routes"}</h2>`;
     const body = mode === "admin"
       ? `<p style="margin:0 0 14px;color:#5f6368">Admin sign-in</p>
-        <form id="ulForm"><input id="ulPw" type="password" autocomplete="current-password" placeholder="Admin password" style="${field}">
+        <form id="ulForm"><input id="ulPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin password" style="${field}">
         <button style="${btn}">Sign in</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`
       : `<p style="margin:0 0 14px;color:#5f6368">Drivers: enter the PIN the office gave you.</p>
         <form id="ulForm"><input id="ulPin" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your PIN" style="${field};text-align:center;letter-spacing:.1em;text-transform:uppercase">
         <button style="${btn}">Sign in</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`;
-    const foot = mode === "admin" ? `<a href="#" id="ulBack" style="color:#5f6368;font-size:14px">Driver sign-in</a>` : `<a href="#" id="ulAdmin" style="color:#5f6368;font-size:14px">Admin sign-in</a>`;
+    const foot = mode === "admin" ? `<a href="#" id="ulBack" style="color:#5f6368;font-size:14px">Driver sign-in</a>` : `<a href="#" id="ulAdmin" style="display:inline-block;background:#d93025;color:#fff;font-weight:700;font-size:17px;padding:10px 22px;border-radius:10px;text-decoration:none">🔑 Admin sign-in</a>`;
     box.innerHTML = `<div style="background:#fff;border-radius:16px;padding:26px 22px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.18);text-align:center">${head}${body}<div style="margin-top:14px">${foot}</div></div>`;
     const a = box.querySelector("#ulAdmin"), bk = box.querySelector("#ulBack");
     if (a) a.onclick = e => { e.preventDefault(); screen("admin"); };
