@@ -99,6 +99,10 @@
   .pop-acts button{flex:1;min-height:42px;border-radius:10px;font:700 15px system-ui,sans-serif;cursor:pointer;border:1.5px solid #188038;background:#fff;color:#188038}
   .pop-acts button.on{background:#188038;color:#fff}
   .pop-acts .pa-photo{border-color:#1a73e8;color:#1a73e8;flex:0 0 auto;padding:0 14px}
+  .pop-acts{flex-wrap:wrap}
+  .pop-acts .pa-timer,.btn.tbtn{border:1.5px solid #188038;color:#188038;background:#fff;font-weight:700;font-variant-numeric:tabular-nums}
+  .pop-acts .pa-timer{flex:1 1 100%}
+  .pop-acts .pa-timer.run,.btn.tbtn.run{background:#d93025;border-color:#d93025;color:#fff}
   .photo{margin:-2px 0 8px;border-radius:8px;overflow:hidden;background:#e8eaed;position:relative}
   .photo-tabs{display:flex;gap:2px;position:absolute;top:6px;left:6px;z-index:2}
   .photo-tabs button{border:none;background:#000a;color:#fff;font:600 11px system-ui,sans-serif;padding:3px 8px;border-radius:5px;cursor:pointer}
@@ -312,6 +316,7 @@
         <hr>
         <button data-act="crew-in" class="crew-out-only local-only">🔓 Crew Sign-In (show codes)</button>
         <button data-act="progress" class="edit-only">📊 Storm progress</button>
+        <button data-act="truck">🚚 Truck &amp; helpers</button>
         <button data-act="crew-out" class="crew-only local-only">Crew sign out</button>
         <button data-act="signout" class="site-only view-only">Sign out of this phone</button>
         <hr>
@@ -326,8 +331,7 @@
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
       </div>
     </div>
-    <button class="btn edit-only" id="driversBtn">👥 Drivers</button>
-    <button class="btn primary" id="shareBtn">Share</button>
+    <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
     <input type="file" id="fileInput" accept=".csv,.kml,.geojson,.json,.txt" multiple hidden>
   </header>
   <main>
@@ -363,7 +367,7 @@ const COLORS = ["#1a73e8","#d93025","#188038","#f29900","#9334e6","#e8710a","#12
 const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
 const $ = (s, el=document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const stopNum = (p, i) => { const m = /^#\s*(\d+)/.exec(p.note || ""); return m ? m[1] : String(i + 1); };
+const stopNum = (p, i) => { const m = /^#\s*(\d+)/.exec(p.note || ""); return m ? m[1] : (p.stopNo || String(i + 1)); };
 const SM = window.EMBEDDED_SITEMAPS || {};
 const hasSM = p => !!(p.smimg && SM[p.smimg]) || !!p.sitemap;
 const smChip = (p, extra="") => hasSM(p) ? `<a class="smchip" href="${esc(p.smimg && SM[p.smimg] ? "#" : p.sitemap)}" ${p.smimg && SM[p.smimg] ? `data-sm="${p.id}"` : `target="_blank" rel="noopener"`} ${extra}>📄 Site map</a>` : "";
@@ -472,7 +476,7 @@ function popupHtml(l, p, i){
       <div class="photo-body"><div class="msg">Loading Street View…</div></div>
     </div>` : "";
   const isD = getDone(l).has(stopNum(p, i));
-  const acts = `<div class="pop-acts"><button type="button" class="pa-done${isD ? " on" : ""}" data-pdone="${p.id}">${isD ? "✓ Recorded · undo" : "✓ Record Progress"}</button>${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
+  const acts = `<div class="pop-acts">${timerBtnHtml(l, stopNum(p, i), `type="button" class="pa-timer" data-ptimer="${p.id}"`)}<button type="button" class="pa-done${isD ? " on" : ""}" data-pdone="${p.id}">${isD ? "✓ Recorded · undo" : "✓ Record Progress"}</button>${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
   return `<div class="pop">${acts}${photo}<b>${stopNum(p, i)}. ${esc(p.name || "Untitled")}</b>${p.address ? `<small>${esc(p.address)}</small>` : ""}
     <small>${esc(l.name)}</small>${noteOf(p) ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${smChip(p)}
     <div class="links"><a href="#" data-edit="${p.id}">Edit</a>${dir ? `<a href="${dir}" target="_blank" rel="noopener">Directions</a><a href="${streetLink(p)}" target="_blank" rel="noopener">Street View ↗</a>` : ""}</div></div>`;
@@ -484,6 +488,15 @@ document.addEventListener("click", ev => {
     completeStop(f.list, f.place, f.index, on => {
       pd.textContent = on ? "✓ Recorded · undo" : "✓ Record Progress"; pd.classList.toggle("on", on);
       renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); }); return; }
+  const pt = ev.target.closest && ev.target.closest("[data-ptimer]");
+  if (pt){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pt.dataset.ptimer); if (!f) return;
+    const num = stopNum(f.place, f.index);
+    if (!timerGet(f.list, num)){ timerStart(f.list, num); pt.outerHTML = timerBtnHtml(f.list, num, `type="button" class="pa-timer" data-ptimer="${f.place.id}"`); toast("⏱ Service started at stop " + num); return; }
+    const places = f.list.places.filter((q, k) => stopNum(q, k) === num);
+    doneForm(f.list, places.length ? places : [f.place], num, det => { markDone(f.list, f.place, f.index, true, det); renderSide();
+      document.querySelectorAll(`[data-ptimer="${f.place.id}"]`).forEach(b => b.outerHTML = timerBtnHtml(f.list, num, `type="button" class="pa-timer" data-ptimer="${f.place.id}"`));
+      const pd = document.querySelector(`[data-pdone="${f.place.id}"]`); if (pd){ pd.textContent = "✓ Recorded · undo"; pd.classList.add("on"); } });
+    return; }
   const pp = ev.target.closest && ev.target.closest("[data-pphoto]");
   if (pp){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pp.dataset.pphoto); if (f) takePhoto(f.list, f.place, stopNum(f.place, f.index)); }
 }, true);
@@ -668,7 +681,6 @@ function detailView(l){
       <button class="btn primary" id="drive">🚗 Drive</button>
       <button class="btn" id="dropPin">📍 Drop pin</button>
       <button class="btn" id="fit">Zoom to list</button>
-      <button class="btn" id="gmap">🗺️ Google Maps</button>
       <button class="btn ${l.visible?"":"on"}" id="vis">${l.visible?"Hide":"Show"}</button>
       <div class="menu" id="listMenu"><button class="btn" id="listMenuBtn">More ▾</button>
         <div class="menu-pop">
@@ -731,7 +743,6 @@ function bindDetailView(l){
   $("#lColor").onchange = e => commit(() => { l.color = e.target.value; });
   $("#fit").onclick = () => fitList(l);
   showRunTime(l);
-  $("#gmap").onclick = () => openGoogleRoute(l);
   $("#drive").onclick = () => driveRun(l);
   $("#vis").onclick = () => commit(() => { l.visible = !l.visible; }, {view: true});
   $("#dropPin").onclick = () => startPick("Click the map to add a place to “" + l.name + "”", async ll => {
@@ -873,6 +884,22 @@ async function encRaw(obj, keyB64){
   const ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, key, gz));
   const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return b64e(out);
 }
+// Key for one piece of a run (its header or one stop), made from the run's key. Same in the loader.
+async function subKey(keyB64, label){
+  const k = await crypto.subtle.importKey("raw", Uint8Array.from(atob(keyB64), c => c.charCodeAt(0)), {name: "HMAC", hash: "SHA-256"}, false, ["sign"]);
+  return b64e(new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(label))));
+}
+// Keys a driver gets: the whole run key, or (some properties only) the header key + one key per chosen stop.
+async function accessKeys(ak, runs, stops){
+  const keys = {};
+  for (const id of runs){
+    if (!ak.keys[id]) continue;
+    const pick = stops && stops[id];
+    if (!pick) keys[id] = ak.keys[id];
+    else { const s = {}; for (const n of pick) s[n] = await subKey(ak.keys[id], "stop:" + n); keys[id] = {h: await subKey(ak.keys[id], "head"), s}; }
+  }
+  return keys;
+}
 let ADMIN_KEYS = ACCESS && ACCESS.role === "admin" ? {keys: {...ACCESS.keys}, logKey: ACCESS.logKey, pw: window.__ADMIN_PW} : null;
 let KEYS_DIRTY = false, RESAVE_DRIVERS = false;
 function askAdminPw(why){
@@ -908,12 +935,19 @@ async function publishSite(){
   if (!window.__FROM_SITE && !confirmLocalPublish()) return;
   const ak = await getAdminKeys(); if (!ak) return;
   toast("Locking the runs…", 2000);
-  const runs = {v: 1, order: [], runs: {}};
+  // Each run: a header plus one locked piece per stop, so single properties can be shared with a driver.
+  const runs = {v: 2, order: [], runs: {}};
   for (const l of S.lists){
     if (!ak.keys[l.id]){ ak.keys[l.id] = newKey(); KEYS_DIRTY = true; }
-    const list = JSON.parse(JSON.stringify(l)); list.places = l.places.map(p => ({...p, note: noteOf(p)})); list.visible = true;
-    const sm = {}; l.places.forEach(p => { if (p.smimg && SM[p.smimg]) sm[p.smimg] = SM[p.smimg]; });
-    runs.order.push(l.id); runs.runs[l.id] = await encRaw({list, sm}, ak.keys[l.id]);
+    const head = JSON.parse(JSON.stringify(l)); delete head.places; head.visible = true;
+    const groups = new Map();
+    l.places.forEach((p, i) => { const num = stopNum(p, i), q = {...p, note: noteOf(p), stopNo: num}; if (!groups.has(num)) groups.set(num, []); groups.get(num).push(q); });
+    const pieces = [];
+    for (const [num, places] of groups){
+      const sm = {}; places.forEach(p => { if (p.smimg && SM[p.smimg]) sm[p.smimg] = SM[p.smimg]; });
+      pieces.push([num, await encRaw({places, sm}, await subKey(ak.keys[l.id], "stop:" + num))]);
+    }
+    runs.order.push(l.id); runs.runs[l.id] = {h: await encRaw({list: head}, await subKey(ak.keys[l.id], "head")), s: pieces};
   }
   const now = Date.now(); S.publishedAt = now; save();
   const meta = {id: S.id, title: S.title, publishedAt: now, savedAt: now, layout: S.layout, view: S.view, showLines: S.showLines, config: S.config || {}};
@@ -962,67 +996,155 @@ const apiErr = j => !j ? "" : j.error === "offline" ? "Couldn't reach your Googl
   j.error === "not admin" ? "The Google Sheet script doesn't have the new admin password yet. Update Code.gs (see instructions)." :
   j.error === "pin taken" ? "Another driver already uses that PIN." : j.error === "bad pin format" ? "PINs need at least 6 letters or numbers." :
   /Unknown action|undefined/.test(j.error || "") ? "Your Google Sheet script is out of date. Paste in the new Code.gs and deploy a new version." : (j.error || "Something went wrong.");
-let DRIVERS = [];
-async function openDrivers(){
+let DRIVERS = [], GUESTS = [], GUEST_FREE = 0, DV_TAB = "drivers";
+// Stops of a run in order: [{num, name}]
+const runStops = l => { const seen = new Map(); l.places.forEach((p, i) => { const n = stopNum(p, i); if (!seen.has(n)) seen.set(n, p.name || p.address || "Stop " + n); }); return [...seen].map(([num, name]) => ({num, name})); };
+// What someone can see, as text: "Run A · Run B (3 of 21 stops)"
+const accessText = (runs, stops) => runs.map(id => { const l = getList(id), pick = stops && stops[id];
+  return esc(runName(id)) + (pick && l ? ` <b style="color:#b06000">(${pick.length} of ${stopCount(l)} stops)</b>` : ""); }).join(" · ");
+const accessPlain = (runs, stops) => runs.map(id => { const l = getList(id), pick = stops && stops[id];
+  return runName(id) + (pick && l ? ` (${pick.length} of ${stopCount(l)} stops: #${pick.join(", #")})` : ""); });
+// Only the properties someone was given (used for the message you send them)
+const sharedLists = (runs, stops) => runs.map(getList).filter(Boolean).map(l => { const pick = stops && stops[l.id]; if (!pick) return l;
+  const set = new Set(pick); return {...l, places: l.places.filter((p, i) => set.has(stopNum(p, i)))}; });
+const fmtWhen = t => new Date(t).toLocaleString([], {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
+async function openDrivers(tab){
   if (!ADMIN) return;
   if (!logUrl()) return toast("Set up the completion log first (File → ⚙ Settings). Drivers are kept in that Google Sheet.", 5000);
-  $("#dlgBody").innerHTML = `<h3>👥 Drivers</h3><div id="dvBody"><p>Loading…</p></div>
-    <footer><button class="btn" id="dvClose">Close</button><button class="btn primary" id="dvAdd">＋ Add driver</button></footer>`;
+  if (tab) DV_TAB = tab;
+  const tabBtn = (k, label) => `<button class="btn ${DV_TAB === k ? "primary" : ""}" data-dvtab="${k}" style="flex:1;justify-content:center">${label}</button>`;
+  $("#dlgBody").innerHTML = `<h3>👥 Drivers</h3>
+    <div class="row" style="gap:8px;margin-bottom:6px">${tabBtn("drivers", "👥 Drivers")}${tabBtn("guests", "🎫 Guest passes")}</div>
+    <div id="dvBody"><p>Loading…</p></div>
+    <footer><button class="btn" id="dvClose">Close</button><button class="btn primary" id="dvAdd">${DV_TAB === "guests" ? "＋ Add guest" : "＋ Add driver"}</button></footer>`;
   const d = $("#dlg"); if (!d.open) d.showModal();
-  $("#dvClose").onclick = () => d.close(); $("#dvAdd").onclick = () => editDriver(null);
+  $("#dlgBody").querySelectorAll("[data-dvtab]").forEach(b => b.onclick = () => openDrivers(b.dataset.dvtab));
+  $("#dvClose").onclick = () => d.close();
+  $("#dvAdd").onclick = () => DV_TAB === "guests" ? (GUEST_FREE > 0 ? editAccess("guest", null) : toast("All 100 guest passes are in use. End one first.", 4000)) : editAccess("driver", null);
+  const card = (inner) => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">${inner}</div>`;
+  if (DV_TAB === "guests"){
+    const j = await adminApi("guests.list"); if (!$("#dvBody")) return;
+    if (!j || !j.ok){ $("#dvBody").innerHTML = `<p style="color:var(--danger)">${esc(apiErr(j) || "Cancelled.")}</p>`; return; }
+    GUESTS = j.guests || []; GUEST_FREE = j.free || 0;
+    const now = Date.now();
+    $("#dvBody").innerHTML = `<p style="font-size:14px;color:#3c4352;margin:4px 0">For people helping out who aren't on the regular team. There are 100 ready-made guest PINs: tap <b>＋ Add guest</b>, type their name and pick what they can see. <b>${GUEST_FREE}</b> of 100 free.</p>
+      ${GUESTS.length ? `<div style="max-height:50vh;overflow:auto">${GUESTS.map((x, i) => { const over = x.expires && x.expires < now;
+        return card(`<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">🎫 ${esc(x.name)}</b>
+          <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(x.code)}</span></div>
+          <small style="display:block;margin:2px 0;color:${over ? "var(--danger)" : "#6b7385"}">${over ? "Ended " + fmtWhen(x.expires) + " (PIN no longer works)" : x.expires ? "Works until " + fmtWhen(x.expires) : "Works until you end it"}</small>
+          <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? accessText(x.runs, x.stops) : "<i>Nothing assigned</i>"}</small>
+          <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-gedit="${i}" style="min-height:36px">✏️ Edit</button>
+          <button class="btn" data-gsend="${i}" style="min-height:36px">📤 Send sign-in</button>
+          <button class="btn danger" data-gend="${i}" style="min-height:36px">⏹ End pass</button></div>`); }).join("")}</div>` : `<p>No guests right now.</p>`}`;
+    $("#dvBody").querySelectorAll("[data-gedit]").forEach(b => b.onclick = () => editAccess("guest", GUESTS[+b.dataset.gedit]));
+    $("#dvBody").querySelectorAll("[data-gend]").forEach(b => b.onclick = () => endGuest(GUESTS[+b.dataset.gend]));
+    $("#dvBody").querySelectorAll("[data-gsend]").forEach(b => b.onclick = () => { const x = GUESTS[+b.dataset.gsend];
+      SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.code, name: x.name}; openShareDialog(); });
+    return;
+  }
   const j = await adminApi("drivers.list"); if (!$("#dvBody")) return;
   if (!j || !j.ok){ $("#dvBody").innerHTML = `<p style="color:var(--danger)">${esc(apiErr(j) || "Cancelled.")}</p>`; return; }
   DRIVERS = j.drivers || [];
-  $("#dvBody").innerHTML = DRIVERS.length ? `<div style="max-height:55vh;overflow:auto">${DRIVERS.map((x, i) => `
-    <div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">
+  $("#dvBody").innerHTML = DRIVERS.length ? `<div style="max-height:52vh;overflow:auto">${DRIVERS.map((x, i) => card(`
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">${esc(x.name)}</b>
         <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(x.pin)}</span></div>
-      <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? x.runs.map(id => esc(runName(id))).join(" · ") : "<i>No runs assigned</i>"}</small>
+      <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? accessText(x.runs, x.stops) : "<i>No runs assigned</i>"}</small>
       <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-dvedit="${i}" style="min-height:36px">✏️ Edit</button>
         <button class="btn" data-dvsend="${i}" style="min-height:36px">📤 Send sign-in</button>
-        <button class="btn danger" data-dvdel="${i}" style="min-height:36px">🗑 Delete</button></div></div>`).join("")}</div>
+        <button class="btn danger" data-dvdel="${i}" style="min-height:36px">🗑 Delete</button></div>`)).join("")}</div>
     <p style="font-size:13.5px;color:#6b7385">Changes apply right away. A driver's phone picks them up the next time the app opens, or within 2 minutes.</p>`
     : `<p>No drivers yet. Tap <b>＋ Add driver</b> to create one with their own PIN.</p>`;
-  $("#dvBody").querySelectorAll("[data-dvedit]").forEach(b => b.onclick = () => editDriver(DRIVERS[+b.dataset.dvedit]));
+  $("#dvBody").querySelectorAll("[data-dvedit]").forEach(b => b.onclick = () => editAccess("driver", DRIVERS[+b.dataset.dvedit]));
   $("#dvBody").querySelectorAll("[data-dvdel]").forEach(b => b.onclick = () => deleteDriver(DRIVERS[+b.dataset.dvdel]));
   $("#dvBody").querySelectorAll("[data-dvsend]").forEach(b => b.onclick = () => { const x = DRIVERS[+b.dataset.dvsend];
-    SHARE_CTX = {lists: x.runs.map(getList).filter(Boolean), link: HOSTED, pin: x.pin, name: x.name}; openShareDialog(); });
+    SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.pin, name: x.name}; openShareDialog(); });
 }
-function editDriver(x){
-  const sel = new Set(x ? x.runs : []);
+// Add / edit a driver or a guest: name, PIN (drivers) or end time (guests), and which runs or single properties they see.
+function editAccess(kind, x){
+  const guest = kind === "guest";
+  const sel = new Map();   // run id -> Set of stop numbers
+  S.lists.forEach(l => { if (x && x.runs.includes(l.id)) sel.set(l.id, new Set(x.stops && x.stops[l.id] ? x.stops[l.id] : runStops(l).map(s => s.num))); });
   const suggest = () => { const r = crypto.getRandomValues(new Uint8Array(6)); let p = ""; r.forEach(v => p += "0123456789"[v % 10]); return p; };
-  $("#dlgBody").innerHTML = `<h3>${x ? "Edit " + esc(x.name) : "＋ Add driver"}</h3>
-    <label style="display:block;font-weight:600">Name</label>
-    <input id="dvName" value="${esc(x ? x.name : "")}" placeholder="e.g. Caleb" style="width:100%;box-sizing:border-box;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:4px 0 12px">
-    <label style="display:block;font-weight:600">PIN <small style="font-weight:400;color:#6b7385">(at least 6 letters or numbers, their own)</small></label>
-    <div class="row" style="gap:8px;margin:4px 0 12px"><input id="dvPin" value="${esc(x ? x.pin : suggest())}" autocapitalize="characters" spellcheck="false" style="flex:1;box-sizing:border-box;font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;padding:10px 12px;border:1px solid var(--line);border-radius:10px;text-transform:uppercase">
-      <button class="btn" id="dvGen" type="button">🎲 New</button></div>
-    <div style="display:flex;justify-content:space-between;align-items:center"><b>Runs they can see</b><span><a href="#" id="dvAll">All</a> · <a href="#" id="dvNone">None</a></span></div>
-    <div id="dvRuns" style="max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 10px;margin-top:6px">
-      ${S.lists.map(l => `<label style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f2f5;cursor:pointer">
-        <input type="checkbox" value="${l.id}" ${sel.has(l.id) ? "checked" : ""} style="width:20px;height:20px"><span style="width:12px;height:12px;border-radius:50%;background:${l.color}"></span>
-        <span>${esc(l.name)} <small style="color:#6b7385">· ${stopCount(l)} stops</small></span></label>`).join("")}</div>
+  const fld = "width:100%;box-sizing:border-box;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px";
+  const endOpts = [["", "Until I end it"], ["today", "End of today"], ["24h", "24 hours from now"], ["3d", "3 days from now"], ["7d", "7 days from now"]];
+  $("#dlgBody").innerHTML = `<h3>${x ? "Edit " + esc(x.name) : guest ? "＋ Add guest" : "＋ Add driver"}</h3>
+    <label style="display:block;font-weight:600">${guest ? "Guest's name" : "Name"}</label>
+    <input id="dvName" value="${esc(x ? x.name : "")}" placeholder="${guest ? "First & last name" : "e.g. Caleb"}" style="${fld};margin:4px 0 12px">
+    ${guest ? `<label style="display:block;font-weight:600">Guest PIN</label>
+      <div style="font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;margin:4px 0 12px;color:#174ea6">${x ? esc(x.code) : "<span style='font:400 15px system-ui;color:#6b7385'>Picked from the ready-made guest PINs when you save</span>"}</div>
+      <label style="display:block;font-weight:600">Pass works</label>
+      <select id="gEnd" style="${fld};margin:4px 0 12px">${x && x.expires ? `<option value="keep" selected>Until ${esc(fmtWhen(x.expires))} (no change)</option>` : ""}${endOpts.map(([v, t]) => `<option value="${v}" ${x && !x.expires && v === "" ? "selected" : ""}>${t}</option>`).join("")}</select>`
+    : `<label style="display:block;font-weight:600">PIN <small style="font-weight:400;color:#6b7385">(at least 6 letters or numbers, their own)</small></label>
+      <div class="row" style="gap:8px;margin:4px 0 12px"><input id="dvPin" value="${esc(x ? x.pin : suggest())}" autocapitalize="characters" spellcheck="false" style="${fld};flex:1;font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase">
+      <button class="btn" id="dvGen" type="button">🎲 New</button></div>`}
+    <div style="display:flex;justify-content:space-between;align-items:center"><b>What they can see</b><span><a href="#" id="dvAll">Select all</a> · <a href="#" id="dvNone">None</a></span></div>
+    <small style="color:#6b7385">Tick a whole run, or tap <b>Pick properties</b> to give only some stops.</small>
+    <div id="dvRuns" style="max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:2px 10px;margin-top:6px"></div>
     <p id="dvErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
     <footer><button class="btn" id="dvBack">Back</button><button class="btn primary" id="dvSave">Save</button></footer>`;
-  const boxes = () => [...$("#dvRuns").querySelectorAll("input")];
-  $("#dvAll").onclick = e => { e.preventDefault(); boxes().forEach(b => b.checked = true); };
-  $("#dvNone").onclick = e => { e.preventDefault(); boxes().forEach(b => b.checked = false); };
-  $("#dvGen").onclick = () => { $("#dvPin").value = suggest(); };
+  const open = new Set();
+  const draw = () => {
+    const keepTop = $("#dvRuns").scrollTop;
+    $("#dvRuns").innerHTML = S.lists.map(l => { const st = runStops(l), cur = sel.get(l.id) || new Set(), n = st.filter(s => cur.has(s.num)).length;
+      return `<div style="border-bottom:1px solid #f0f2f5;padding:6px 0">
+        <div style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-run="${l.id}" ${n && n === st.length ? "checked" : ""} style="width:20px;height:20px;flex:none">
+          <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex:none"></span>
+          <span style="flex:1;min-width:0">${esc(l.name)} <small style="color:${n && n < st.length ? "#b06000;font-weight:700" : "#6b7385"}">· ${n && n < st.length ? n + " of " : ""}${st.length} stops</small></span>
+          <a href="#" data-popen="${l.id}" style="white-space:nowrap;font-size:14px">${open.has(l.id) ? "Hide ▴" : "Pick properties ▾"}</a></div>
+        ${open.has(l.id) ? `<div style="margin:6px 0 4px 30px;border-left:3px solid #e8f0fe;padding-left:10px">
+          <div style="font-size:13.5px;margin-bottom:2px"><a href="#" data-sall="${l.id}">Select all</a> · <a href="#" data-snone="${l.id}">None</a></div>
+          ${st.map(s => `<label style="display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer"><input type="checkbox" data-stop="${l.id}|${esc(s.num)}" ${cur.has(s.num) ? "checked" : ""} style="width:20px;height:20px;flex:none"><span><b>#${esc(s.num)}</b> ${esc(s.name)}</span></label>`).join("")}</div>` : ""}</div>`; }).join("");
+    $("#dvRuns").querySelectorAll("[data-run]").forEach(b => { const l = getList(b.dataset.run), st = runStops(l), cur = sel.get(l.id);
+      b.indeterminate = !!cur && cur.size > 0 && cur.size < st.length;
+      b.onchange = () => { if (b.checked) sel.set(l.id, new Set(st.map(s => s.num))); else sel.delete(l.id); draw(); }; });
+    $("#dvRuns").querySelectorAll("[data-popen]").forEach(a => a.onclick = e => { e.preventDefault(); const id = a.dataset.popen; open.has(id) ? open.delete(id) : open.add(id); draw(); });
+    $("#dvRuns").querySelectorAll("[data-sall]").forEach(a => a.onclick = e => { e.preventDefault(); const l = getList(a.dataset.sall); sel.set(l.id, new Set(runStops(l).map(s => s.num))); draw(); });
+    $("#dvRuns").querySelectorAll("[data-snone]").forEach(a => a.onclick = e => { e.preventDefault(); sel.delete(a.dataset.snone); draw(); });
+    $("#dvRuns").querySelectorAll("[data-stop]").forEach(b => b.onchange = () => { const [id, num] = b.dataset.stop.split("|"); const cur = sel.get(id) || new Set();
+      b.checked ? cur.add(num) : cur.delete(num); cur.size ? sel.set(id, cur) : sel.delete(id); draw(); });
+    $("#dvRuns").scrollTop = keepTop;
+  };
+  draw();
+  $("#dvAll").onclick = e => { e.preventDefault(); S.lists.forEach(l => sel.set(l.id, new Set(runStops(l).map(s => s.num)))); draw(); };
+  $("#dvNone").onclick = e => { e.preventDefault(); sel.clear(); draw(); };
+  const gen = $("#dvGen"); if (gen) gen.onclick = () => { $("#dvPin").value = suggest(); };
   $("#dvBack").onclick = () => openDrivers();
   $("#dvName").focus();
   $("#dvSave").onclick = async () => {
-    const name = $("#dvName").value.trim(), pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, ""), runs = boxes().filter(b => b.checked).map(b => b.value);
-    if (!name) return ($("#dvErr").textContent = "Type the driver's name.");
-    if (pin.length < 6) return ($("#dvErr").textContent = "PINs need at least 6 letters or numbers.");
+    const name = $("#dvName").value.trim().replace(/\s+/g, " ");
+    const runs = S.lists.filter(l => sel.has(l.id)).map(l => l.id), stops = {};
+    runs.forEach(id => { const st = runStops(getList(id)), cur = sel.get(id); if (cur.size < st.length) stops[id] = st.map(s => s.num).filter(n => cur.has(n)); });
+    if (!name) return ($("#dvErr").textContent = guest ? "Type the guest's name." : "Type the driver's name.");
+    let pin = "";
+    if (!guest){ pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (pin.length < 6) return ($("#dvErr").textContent = "PINs need at least 6 letters or numbers."); }
+    if (Object.keys(stops).length && (window.__RUNS_V || 1) < 2)
+      return ($("#dvErr").innerHTML = "To share single properties, publish once first: <b>File → ⬆ Publish to site</b>, upload <b>runs.enc</b> to GitHub, then reopen the app. After that, no more uploads are needed for this.");
     const ak = await getAdminKeys(); if (!ak) return;
     const missing = runs.filter(id => !ak.keys[id]);
     if (missing.length) return ($("#dvErr").textContent = `Publish first: ${missing.map(runName).join(", ")} isn't on the site yet.`);
-    const keys = {}; runs.forEach(id => keys[id] = ak.keys[id]);
     $("#dvSave").disabled = true; $("#dvSave").textContent = "Saving…";
-    const j = await adminApi("drivers.save", {driver: {id: x ? x.id : "", name, pin, runs, runNames: runs.map(runName), keys}});
-    if (!j || !j.ok){ $("#dvSave").disabled = false; $("#dvSave").textContent = "Save"; $("#dvErr").textContent = apiErr(j); return; }
+    const keys = await accessKeys(ak, runs, stops), runNames = accessPlain(runs, stops);
+    let j;
+    if (guest){
+      const v = $("#gEnd").value, now = new Date();
+      const expires = v === "keep" ? x.expires : v === "today" ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime()
+        : v === "24h" ? now.getTime() + 864e5 : v === "3d" ? now.getTime() + 3 * 864e5 : v === "7d" ? now.getTime() + 7 * 864e5 : 0;
+      j = await adminApi("guests.save", {guest: {code: x ? x.code : "", name, runs, stops, runNames, keys, expires}});
+    } else j = await adminApi("drivers.save", {driver: {id: x ? x.id : "", name, pin, runs, stops, runNames, keys}});
+    if (!j || !j.ok){ $("#dvSave").disabled = false; $("#dvSave").textContent = "Save"; $("#dvErr").textContent = j && j.error === "no free guest" ? "All 100 guest passes are in use. End one first." : apiErr(j); return; }
+    if (guest && !x){ toast(`Guest pass ready for ${name}: PIN ${j.code}`, 5000);
+      SHARE_CTX = {lists: sharedLists(runs, stops), link: HOSTED, pin: j.code, name}; DV_TAB = "guests"; return openShareDialog(); }
     toast(`${name} saved. Their phone updates automatically.`, 3000); openDrivers();
   };
+}
+function endGuest(x){
+  $("#dlgBody").innerHTML = `<h3>⏹ End ${esc(x.name)}'s guest pass?</h3>
+    <p>PIN <b>${esc(x.code)}</b> stops working right away, and that slot gets a brand-new PIN for the next guest. Their phone loses access within 2 minutes.</p>
+    <p style="font-size:14px;color:#6b7385">Their recorded stops stay in the spreadsheet.</p>
+    <footer><button class="btn" id="geNo">Cancel</button><button class="btn danger" id="geYes">End pass</button></footer>`;
+  $("#geNo").onclick = () => openDrivers("guests");
+  $("#geYes").onclick = async () => { $("#geYes").disabled = true; const j = await adminApi("guests.end", {code: x.code});
+    if (!j || !j.ok) toast(apiErr(j) || "Couldn't end the pass", 4000); else toast(x.name + "'s pass ended"); openDrivers("guests"); };
 }
 function deleteDriver(x){
   $("#dlgBody").innerHTML = `<h3>🗑 Delete ${esc(x.name)}?</h3>
@@ -1034,12 +1156,13 @@ function deleteDriver(x){
     if (!j || !j.ok){ toast(apiErr(j) || "Couldn't delete", 4000); return openDrivers(); }
     toast(x.name + " deleted"); openDrivers(); };
 }
-// After new keys are published, every driver needs their keys refreshed.
+// After new keys are published, every driver and guest needs their keys refreshed.
 async function resaveDrivers(){
   const ak = await getAdminKeys(); if (!ak) return;
   const j = await adminApi("drivers.list"); if (!j || !j.ok) return toast("Couldn't update drivers: " + apiErr(j), 5000);
-  for (const x of j.drivers || []){ const keys = {}; x.runs.forEach(id => { if (ak.keys[id]) keys[id] = ak.keys[id]; });
-    await adminApi("drivers.save", {driver: {...x, keys}}); }
+  for (const x of j.drivers || []) await adminApi("drivers.save", {driver: {...x, runNames: accessPlain(x.runs, x.stops), keys: await accessKeys(ak, x.runs, x.stops)}});
+  const g = await adminApi("guests.list");
+  if (g && g.ok) for (const x of g.guests || []) await adminApi("guests.save", {guest: {...x, runNames: accessPlain(x.runs, x.stops), keys: await accessKeys(ak, x.runs, x.stops)}});
   toast("Drivers updated with the new locks", 3000);
 }
 // Drivers: pick up changes the office makes (runs added/removed, PIN changed, driver deleted)
@@ -1048,10 +1171,10 @@ async function refreshAccess(){
   if (!ACCESS || ACCESS.role !== "crew" || !window.__rmApi || ACCESS.offlineCheck) return;
   let j; try { j = await window.__rmApi({action: "login", pin: ACCESS.pin}, 10000); } catch(e){ return; }
   const save = v => { try { v ? localStorage.setItem("routemaps:access", JSON.stringify(v)) : localStorage.removeItem("routemaps:access"); } catch(e){} };
-  if (j && !j.ok && j.error === "bad pin"){ save(null); toast("Your access was changed by the office", 3000); setTimeout(() => location.reload(), 1500); return; }
+  if (j && !j.ok && (j.error === "bad pin" || j.error === "expired")){ save(null); toast("Your access was changed by the office", 3000); setTimeout(() => location.reload(), 1500); return; }
   if (!j || !j.ok) return;
   const nk = j.keys || {}, ok = ACCESS.keys || {};
-  const same = Object.keys(nk).length === Object.keys(ok).length && Object.keys(nk).every(k => nk[k] === ok[k]);
+  const same = Object.keys(nk).length === Object.keys(ok).length && Object.keys(nk).every(k => JSON.stringify(nk[k]) === JSON.stringify(ok[k]));
   save({role: "crew", name: j.name, keys: nk, logKey: j.logKey || "", pin: ACCESS.pin, runs: j.runs || []});
   if (!same){ if (NAV.on) RELOAD_AFTER_NAV = true; else { toast("The office updated your runs", 2500); setTimeout(() => location.reload(), 1500); } }
 }
@@ -1088,18 +1211,28 @@ const knownDriver = () => (ACCESS && ACCESS.role === "crew" && ACCESS.name) || "
 function askDriver(then){
   const d0 = lsGet("routemaps:driver") || {}, known = knownDriver();
   const field = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px";
-  $("#dlgBody").innerHTML = `<h3>🚚 ${known ? "Truck number" : "Who's driving?"}</h3>
+  const helpers0 = Array.isArray(d0.helpers) && d0.helpers.length ? d0.helpers : [""];
+  const hRow = (v, i) => `<div class="row hrow" style="gap:6px;margin-bottom:8px"><input class="drHelper" value="${esc(v)}" placeholder="Helper's First & Last Name" autocapitalize="words" style="${field};flex:1">${i ? `<button type="button" class="btn drHdel" title="Remove this helper" style="min-width:44px">✕</button>` : ""}</div>`;
+  $("#dlgBody").innerHTML = `<h3>🚚 ${known ? "Truck & helpers" : "Who's driving?"}</h3>
     <p>${known ? `Hi ${esc(known)}, which truck are you in? It's saved on this phone and added to each completed stop.` : "Saved on this phone and added to each completed stop."}</p>
     <form id="drForm">${known ? "" : `<input id="drName" value="${esc(d0.name || "")}" placeholder="Your name" style="${field};margin-bottom:8px">`}
-    <input id="drTruck" value="${esc(d0.truck || "")}" placeholder="Truck # (e.g. 208)" inputmode="text" style="${field}">
+    <label style="display:block;font-weight:600;margin-bottom:4px">Truck #</label>
+    <input id="drTruck" value="${esc(d0.truck || "")}" placeholder="Truck # (e.g. 208)" inputmode="text" style="${field};margin-bottom:12px">
+    <label style="display:block;font-weight:600;margin-bottom:4px">Helper's First &amp; Last Name: <small style="font-weight:400;color:#6b7385">(leave blank if none)</small></label>
+    <div id="drHelpers">${helpers0.map(hRow).join("")}</div>
+    <button type="button" class="btn" id="drAddH">＋ Add another Helper</button>
     <p id="drErr" style="color:var(--danger);min-height:20px;margin:6px 0 0"></p>
     <footer><button class="btn primary" type="submit">Save</button></footer></form>`;
   const d = $("#dlg"); if (!d.open) d.showModal(); (known ? $("#drTruck") : $("#drName")).focus();
+  const wire = () => $("#drHelpers").querySelectorAll(".drHdel").forEach(b => b.onclick = () => b.closest(".hrow").remove());
+  wire();
+  $("#drAddH").onclick = () => { $("#drHelpers").insertAdjacentHTML("beforeend", hRow("", 1)); wire(); const all = $("#drHelpers").querySelectorAll(".drHelper"); all[all.length - 1].focus(); };
   $("#drForm").onsubmit = e => { e.preventDefault();
     const name = known || ($("#drName") ? $("#drName").value.trim() : ""), truck = $("#drTruck").value.trim();
+    const helpers = [...$("#drHelpers").querySelectorAll(".drHelper")].map(x => x.value.trim().replace(/\s+/g, " ")).filter(Boolean);
     if (!name){ $("#drErr").textContent = "Type your name."; return $("#drName").focus(); }
     if (!truck){ $("#drErr").textContent = "Type your truck number."; return $("#drTruck").focus(); }
-    lsSet("routemaps:driver", {name, truck}); d.close(); then && then(); };
+    lsSet("routemaps:driver", {name, truck, helpers}); d.close(); then && then(); };
 }
 // Phone's real GPS position for the log (never the property's own pin).
 function gpsNow(){
@@ -1112,14 +1245,15 @@ function gpsNow(){
 async function logEvent(event, l, p, num, photo, extra = {}){
   if (!logUrl()) return;
   if (!CREW_PW){ if (!warnedCrew){ warnedCrew = true; toast("Saved on this phone. Sign in as crew to send it to the office log.", 3500); } return; }
-  const dv = lsGet("routemaps:driver"); if (!dv || !dv.truck) return askDriver(() => logEvent(event, l, p, num, photo, extra));
+  const dv = lsGet("routemaps:driver"); if (!dv || !dv.truck || !Array.isArray(dv.helpers)) return askDriver(() => logEvent(event, l, p, num, photo, extra));
   if (knownDriver()) dv.name = knownDriver();
   const t = extra.t || Date.now();
   const g = extra.noGps ? null : (extra.pos || await gpsNow());
   const dist = g && hasLoc(p) ? Math.round(hav([g.lat, g.lng], [p.lat, p.lng])) : "";
-  const e = {id: uid() + uid(), t, event, run: l.name, stop: num, name: p.name, address: p.address || "", driver: dv.name, truck: dv.truck || "",
+  const e = {id: uid() + uid(), t, event, run: l.name, stop: num, name: p.name, address: p.address || "", driver: dv.name, truck: dv.truck || "", helpers: (dv.helpers || []).join(", "),
     lat: g ? +g.lat.toFixed(6) : "", lng: g ? +g.lng.toFixed(6) : "", acc: g && g.acc ? Math.round(g.acc) : "", dist: extra.dist ?? dist,
-    onsite: extra.onsite || "", signedIn: (window.__ACCESS && window.__ACCESS.signedAt) || "", photo: photo || "", work: extra.work || "", missed: extra.missed || "", materials: extra.materials || "", comment: extra.comment || ""};
+    onsite: extra.onsite || "", signedIn: (window.__ACCESS && window.__ACCESS.signedAt) || "", photo: photo || "", work: extra.work || "", missed: extra.missed || "", materials: extra.materials || "", comment: extra.comment || "",
+    startT: extra.start || "", stopT: extra.stop || "", service: extra.service || ""};
   const q = lsGet(LOGQ) || []; q.push(e);
   try { localStorage.setItem(LOGQ, JSON.stringify(q)); } catch(err){ sendLog(e); return; }
   flushLog();
@@ -1159,12 +1293,28 @@ function scopeItems(places){
   }
   return [];
 }
+// ---------- Service timer: Start / Stop per property (each Start→Stop is one service run in the log) ----------
+const TIMERS = "routemaps:timers", tKey = (l, num) => l.id + "|" + num;
+const timerGet = (l, num) => (lsGet(TIMERS) || {})[tKey(l, num)] || 0;
+function timerStart(l, num){ const t = lsGet(TIMERS) || {}; t[tKey(l, num)] = Date.now(); lsSet(TIMERS, t); }
+function timerClear(l, num){ const t = lsGet(TIMERS) || {}; delete t[tKey(l, num)]; lsSet(TIMERS, t); }
+const svcDur = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + " h " : "") + (h || m ? m + " min " : "") + x + " sec"; };
+const fmtClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+function timerBtnHtml(l, num, attrs){
+  const t0 = timerGet(l, num);
+  return t0 ? `<button ${attrs.replace(/class="([^"]*)"/, 'class="$1 run"')}>■ Stop · <span data-tclock="${t0}">${fmtClock(Date.now() - t0)}</span></button>`
+            : `<button ${attrs}>▶ Start service</button>`;
+}
+setInterval(() => document.querySelectorAll("[data-tclock]").forEach(e => e.textContent = fmtClock(Date.now() - +e.dataset.tclock)), 1000);
+const fmtClockT = t => new Date(t).toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
 function doneForm(l, places, num, onSave){
+  const t0 = timerGet(l, num);
   const items = scopeItems(places), p0 = places[0];
   const notes = (noteOf(places.find(p => /Notes?:/i.test(noteOf(p))) || p0).split(/Notes?:/i)[1] || "").trim();
   const cb = (name, label, i) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 2px;border-bottom:1px solid #f0f2f5;cursor:pointer">
       <input type="checkbox" name="${name}" value="${i}" style="width:22px;height:22px;flex:none;margin-top:1px"><span>${esc(label)}</span></label>`;
-  $("#dlgBody").innerHTML = `<h3>✓ Stop ${esc(num)} done</h3><p style="margin-top:0"><b>${esc(p0.name)}</b></p>
+  $("#dlgBody").innerHTML = `<h3>✓ Record Progress · Stop ${esc(num)}</h3><p style="margin-top:0"><b>${esc(p0.name)}</b></p>
+    ${t0 ? `<p style="background:#e6f4ea;border:1px solid #b7e1c1;border-radius:10px;padding:8px 10px;margin:0 0 8px">⏱ Service run: <b><span data-tclock="${t0}">${fmtClock(Date.now() - t0)}</span></b> (started ${fmtClockT(t0)}). Saving stops the timer.</p>` : ""}
     <form id="dfForm">
     ${items.length ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><b>Work completed</b><a href="#" id="dfAll">Select all</a></div>
       <div style="border:1px solid var(--line);border-radius:10px;padding:0 10px;margin:6px 0 10px;max-height:32vh;overflow:auto">${items.map((t, i) => cb("work", t, i)).join("")}</div>` : ""}
@@ -1173,7 +1323,7 @@ function doneForm(l, places, num, onSave){
     <div style="border:1px solid var(--line);border-radius:10px;padding:0 10px;margin:6px 0 10px">${MATERIALS.map((t, i) => cb("mat", t, i)).join("")}</div>
     <b>Comments</b>
     <textarea id="dfCom" placeholder="Anything the office should know (blocked lot, cars in the way, damage…)" style="width:100%;box-sizing:border-box;min-height:80px;margin-top:6px;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px"></textarea>
-    <footer><button class="btn" type="button" id="dfCancel">Cancel</button><button class="btn primary" type="submit">✓ Mark done</button></footer></form>`;
+    <footer><button class="btn" type="button" id="dfCancel">Cancel</button><button class="btn primary" type="submit">✓ Save</button></footer></form>`;
   const d = $("#dlg"); if (!d.open) d.showModal();
   const all = $("#dfAll"); if (all) all.onclick = e => { e.preventDefault(); const bs = [...$("#dfForm").querySelectorAll("input[name=work]")]; const on = bs.some(b => !b.checked); bs.forEach(b => b.checked = on); all.textContent = on ? "Clear all" : "Select all"; };
   $("#dfCancel").onclick = () => d.close();
@@ -1183,13 +1333,15 @@ function doneForm(l, places, num, onSave){
     const missed = items.filter((t, i) => !f.querySelector(`input[name=work][value="${i}"]`).checked);
     const mats = [...f.querySelectorAll("input[name=mat]:checked")].map(b => MATERIALS[+b.value]);
     d.close();
-    onSave({work: work.join("; "), missed: missed.join("; "), materials: mats.join("; "), comment: $("#dfCom").value.trim()});
+    const det = {work: work.join("; "), missed: missed.join("; "), materials: mats.join("; "), comment: $("#dfCom").value.trim()};
+    if (t0){ const t1 = Date.now(); Object.assign(det, {start: t0, stop: t1, service: svcDur(t1 - t0)}); timerClear(l, num); }
+    onSave(det);
   };
 }
 // Marks a stop done (with the form) or undoes it; cb(on) after.
 function completeStop(l, p, i, cb){
   const num = stopNum(p, i);
-  if (getDone(l).has(num)){ markDone(l, p, i, false); return cb(false); }
+  if (getDone(l).has(num) && !timerGet(l, num)){ markDone(l, p, i, false); return cb(false); }
   const places = l.places.filter((q, k) => stopNum(q, k) === num);
   doneForm(l, places.length ? places : [p], num, det => { markDone(l, p, i, true, det); cb(true); });
 }
@@ -1449,6 +1601,7 @@ fm.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { fm.classList.
   if (a === "exp-geojson") download(slug(S.title) + ".geojson", JSON.stringify(toGeoJSON(vis), null, 1), "application/geo+json");
   if (a === "exp-json") download(slug(S.title) + "-backup.json", JSON.stringify(S, null, 1), "application/json");
   if (a === "print") window.print();
+  if (a === "truck"){ askDriver(() => toast("Saved on this phone")); return; }
   if (a === "admin-in"){ if (window.__FROM_SITE) signOutSite(true); else adminSignIn(); }
   if (a === "signout") signOutSite(false);
   if (a === "admin-out" && window.__FROM_SITE) return signOutSite(false);
@@ -1675,7 +1828,6 @@ function openGoogleRoute(l){
     <footer><button class="btn" id="gmClose">Close</button></footer>`;
   $("#dlg").showModal(); $("#gmClose").onclick = () => $("#dlg").close();
 }
-$("#shareBtn").onclick = () => startShare();
 $("#driversBtn").onclick = () => openDrivers();
 function openShareDialog(){
   const C = SHARE_CTX;
@@ -2020,7 +2172,7 @@ function navBottom(s, meta, extra=""){
         return `<div style="background:#fef7e0;border:1px solid #f9e29c;color:#7a4f01;border-radius:8px;padding:6px 10px;margin-top:6px;font-weight:600">⚠ Already serviced on this run${v.t ? " at " + fmtT(v.t) : ""}${v.by ? " · " + esc(v.by) : ""}</div>`; })()}
       ${noteOf(s.places[0]) ? `<div class="nav-note">${esc(noteOf(s.places[0]))}</div>` : ""}</div></div>
     ${extra}
-    ${NAV.arrivedAt ? "" : `<div class="row" style="gap:8px;margin:8px 0">${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1;justify-content:center">✓ Record Progress</button></div>`}
+    ${NAV.arrivedAt ? "" : workRows(s)}
     <div class="nav-btns">
       <button class="btn" id="nvPrev" title="Previous stop">◀</button>
       <button class="btn" id="nvSkip">Skip ▶</button>
@@ -2037,7 +2189,12 @@ function navBottom(s, meta, extra=""){
   const smb = $("#navBot [data-sm]"); // site map chip handled by global listener
   wireDone(s);
 }
+function workRows(s){
+  return `<div class="row" style="gap:8px;margin:8px 0">${timerBtnHtml(NAV.list, s.num, `class="btn tbtn" id="nvTimer" style="flex:1;justify-content:center"`)}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}</div>
+    <button class="btn primary" id="nvDone" style="width:100%;justify-content:center;margin-bottom:8px">✓ Record Progress</button>`;
+}
 function wireDone(s){
+  const nt = $("#nvTimer"); if (nt) nt.onclick = () => { if (!timerGet(NAV.list, s.num)){ timerStart(NAV.list, s.num); nt.outerHTML = timerBtnHtml(NAV.list, s.num, `class="btn tbtn" id="nvTimer" style="flex:1;justify-content:center"`); wireDone(s); toast("⏱ Service started"); } else $("#nvDone").click(); };
   const np = $("#nvPhoto"); if (np) np.onclick = () => takePhoto(NAV.list, s.target, s.num);
   const nd = $("#nvDone"); if (nd) nd.onclick = () => doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
     const n = nextUndone(NAV.idx + 1) >= 0 ? nextUndone(NAV.idx + 1) : nextUndone(0);
@@ -2046,7 +2203,7 @@ function wireDone(s){
 }
 function navArrived(s){
   $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
-  navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1;justify-content:center">✓ Record Progress</button></div>`);
+  navBottom(s, "You're here", (smChip(s.places[0]) ? `<div style="margin:8px 0 0">${smChip(s.places[0])}</div>` : "") + workRows(s));
   wireDone(s);
 }
 function goStop(d){
@@ -2151,11 +2308,32 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
     finally { clearTimeout(t); }
   };
   const store = v => { try { v ? localStorage.setItem("routemaps:access", JSON.stringify(v)) : localStorage.removeItem("routemaps:access"); } catch(e){} };
+  // v2 runs.enc: each run has a header + one locked piece per stop, so the office can share single properties.
+  // Piece keys come from the run key: HMAC-SHA256(runKey, "head") and HMAC-SHA256(runKey, "stop:<n>").
+  const subKey = window.__rmSubKey = async (keyB64, label) => {
+    const k = await crypto.subtle.importKey("raw", b64d(keyB64), {name: "HMAC", hash: "SHA-256"}, false, ["sign"]);
+    const sig = new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(label)));
+    let s = ""; sig.forEach(c => s += String.fromCharCode(c)); return btoa(s);
+  };
+  async function openRun(id, k, admin){
+    const r = runs.runs[id]; if (!r || !k) return null;
+    if (typeof r === "string") return typeof k === "string" ? decRaw(r, k) : null;           // v1 file (whole run, one key)
+    const full = typeof k === "string";
+    const head = await decRaw(r.h, full ? await subKey(k, "head") : k.h); if (!head) return null;
+    const list = head.list, sm = {}; list.places = [];
+    const parts = await Promise.all(r.s.map(async ([num, blob]) => {
+      const sk = full ? await subKey(k, "stop:" + num) : (k.s || {})[num];
+      return sk ? decRaw(blob, sk) : null;
+    }));
+    parts.forEach((o, i) => { if (!o) return; o.places.forEach(p => { if (admin) delete p.stopNo; list.places.push(p); }); Object.assign(sm, o.sm || {}); });
+    if (!full && !list.places.length) return null;
+    return {list, sm};
+  }
   async function openWith(access){
     const lists = [], sm = {};
+    window.__RUNS_V = runs.v || 1;
     for (const id of runs.order){
-      const k = access.keys[id]; if (!k || !runs.runs[id]) continue;
-      const o = await decRaw(runs.runs[id], k); if (!o) continue;
+      const o = await openRun(id, access.keys[id], access.role === "admin"); if (!o) continue;
       lists.push(o.list); Object.assign(sm, o.sm || {});
     }
     window.__FROM_SITE = true; window.__ACCESS = access;
@@ -2187,7 +2365,7 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
     else if (stored.pin){
       const j = await driverLogin(stored.pin, "Opened the app");
       if (j && j.ok){ const a = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin: stored.pin, runs: j.runs || [], signedAt: Date.now()}; store(a); await openWith(a); return run(); }
-      if (j && !j.ok && j.error === "bad pin") store(null);                       // removed or PIN changed
+      if (j && !j.ok && (j.error === "bad pin" || j.error === "expired")) store(null);   // removed, PIN changed or guest pass ended
       else { await openWith({...stored, offline: true, signedAt: Date.now()}); return run(); }        // no signal: use what this phone already has
     }
   }
@@ -2219,7 +2397,7 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
         const pin = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
         const j = pin ? await driverLogin(pin, "Signed in with PIN") : null;
         if (!j) err.textContent = "Couldn't reach the office. Check your signal and try again.";
-        else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : "That PIN isn't right. Check it and try again.";
+        else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : j.error === "expired" ? "This guest pass has ended. Ask the office for a new one." : "That PIN isn't right. Check it and try again.";
         else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || [], signedAt: Date.now()}; store(acc); await openWith(acc); okd = true; }
       } else {
         if (await adminOpen(inp.value)){ store({role: "admin", pw: inp.value}); okd = true; } else err.textContent = "Wrong password.";
