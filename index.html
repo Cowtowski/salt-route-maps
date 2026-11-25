@@ -146,7 +146,7 @@
   body.site .local-only{display:none!important}
   body:not(.site) .site-only{display:none!important}
   .pinbox{background:#e8f0fe;border:1px solid #aecbfa;border-radius:12px;padding:12px 14px;margin:6px 0 10px}
-  .pinbox .pin{font:800 26px ui-monospace,Consolas,monospace;letter-spacing:.08em;color:#174ea6}
+  .pinbox .pincode{font:800 26px ui-monospace,Consolas,monospace;letter-spacing:.08em;color:#174ea6;transform:none;width:auto;height:auto;border:0;box-shadow:none;display:block;word-break:break-all;margin:2px 0}
   body.crew .crew-out-only{display:none!important}
   .donebtn{border:1.5px solid #188038;color:#188038;background:#fff;border-radius:10px;min-width:44px;min-height:40px;padding:6px 10px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
   .donebtn.on{background:#188038;color:#fff}
@@ -1867,9 +1867,9 @@ function openShareDialog(){
   let canShareFiles = false;
   try { canShareFiles = !!(navigator.canShare && navigator.canShare({files: [new File(["x"], "t.html", {type: "text/html"})]})); } catch(e){}
   const isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const opt = {...(lsGet("routemaps:shareopts") || {gmaps: true, list: false, stops: false}), file: false, link: true};
+  const opt = {...(lsGet("routemaps:shareopts") || {list: false, stops: false}), gmaps: false, file: false, link: true};   // Google Maps link off unless ticked each time
   $("#dlgBody").innerHTML = `<h3>Send to ${esc(C.name)}</h3>
-    <div class="pinbox"><div style="font-size:14px">${esc(C.name)}'s PIN</div><div class="pin">${esc(C.pin)}</div>
+    <div class="pinbox"><div style="font-size:14px">${esc(C.name)}'s PIN</div><div class="pincode">${esc(C.pin)}</div>
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="shCopyPin" style="min-height:36px">Copy PIN</button>
 </div>
       <small style="color:#3c4352;display:block;margin-top:6px">The PIN is included in the message. Runs right now: ${C.lists.map(l => esc(l.name)).join(", ") || "none"}.</small></div>
