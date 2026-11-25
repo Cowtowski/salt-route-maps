@@ -310,12 +310,12 @@
         <hr>
         <button data-act="print">Print current view</button>
         <hr>
-        <button data-act="crew-in" class="crew-out-only local-only">🔓 Crew sign-in (show codes)</button>
+        <button data-act="crew-in" class="crew-out-only local-only">🔓 Crew Sign-In (show codes)</button>
         <button data-act="progress" class="edit-only">📊 Storm progress</button>
         <button data-act="crew-out" class="crew-only local-only">Crew sign out</button>
         <button data-act="signout" class="site-only view-only">Sign out of this phone</button>
         <hr>
-        <button data-act="admin-in" class="view-only">🔑 Admin sign-in</button>
+        <button data-act="admin-in" class="view-only">🔑 Admin Sign-In</button>
         <button data-act="settings" class="edit-only">⚙ Settings</button>
         <button data-act="publish" class="edit-only">⬆ Publish to site</button>
         <button data-act="admin-out" class="edit-only">Admin sign out</button>
@@ -472,7 +472,7 @@ function popupHtml(l, p, i){
       <div class="photo-body"><div class="msg">Loading Street View…</div></div>
     </div>` : "";
   const isD = getDone(l).has(stopNum(p, i));
-  const acts = `<div class="pop-acts"><button type="button" class="pa-done${isD ? " on" : ""}" data-pdone="${p.id}">${isD ? "✓ Done · undo" : "✓ Mark done"}</button>${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
+  const acts = `<div class="pop-acts"><button type="button" class="pa-done${isD ? " on" : ""}" data-pdone="${p.id}">${isD ? "✓ Recorded · undo" : "✓ Record Progress"}</button>${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
   return `<div class="pop">${acts}${photo}<b>${stopNum(p, i)}. ${esc(p.name || "Untitled")}</b>${p.address ? `<small>${esc(p.address)}</small>` : ""}
     <small>${esc(l.name)}</small>${noteOf(p) ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${smChip(p)}
     <div class="links"><a href="#" data-edit="${p.id}">Edit</a>${dir ? `<a href="${dir}" target="_blank" rel="noopener">Directions</a><a href="${streetLink(p)}" target="_blank" rel="noopener">Street View ↗</a>` : ""}</div></div>`;
@@ -482,7 +482,7 @@ document.addEventListener("click", ev => {
   const pd = ev.target.closest && ev.target.closest("[data-pdone]");
   if (pd){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pd.dataset.pdone); if (!f) return;
     completeStop(f.list, f.place, f.index, on => {
-      pd.textContent = on ? "✓ Done · undo" : "✓ Mark done"; pd.classList.toggle("on", on);
+      pd.textContent = on ? "✓ Recorded · undo" : "✓ Record Progress"; pd.classList.toggle("on", on);
       renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); }); return; }
   const pp = ev.target.closest && ev.target.closest("[data-pphoto]");
   if (pp){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pp.dataset.pphoto); if (f) takePhoto(f.list, f.place, stopNum(f.place, f.index)); }
@@ -832,11 +832,11 @@ async function loadPriv(pw){
 }
 function applyCrew(){ document.body.classList.toggle("crew", !!CREW_PW); }
 function crewSignIn(then){
-  $("#dlgBody").innerHTML = `<h3>🔓 Crew sign-in</h3>
+  $("#dlgBody").innerHTML = `<h3>🔓 Crew Sign-In</h3>
     <p>Shows lockbox, gate and alarm codes and contact numbers, and lets you log completed stops. Use the crew password from the office.</p>
     <form id="crForm"><input id="crPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Crew password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
     <p id="crErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
-    <footer><button class="btn" type="button" id="crCancel">Cancel</button><button class="btn primary" type="submit">Sign in</button></footer></form>`;
+    <footer><button class="btn" type="button" id="crCancel">Cancel</button><button class="btn primary" type="submit">Crew Sign-In</button></footer></form>`;
   const d = $("#dlg"); if (!d.open) d.showModal(); $("#crPw").focus();
   $("#crCancel").onclick = () => d.close();
   $("#crForm").onsubmit = async e => {
@@ -1398,11 +1398,11 @@ async function saveOffline(l){
 const fmtStamp = t => new Date(t).toLocaleString([], {month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit"});
 
 function adminSignIn(){
-  $("#dlgBody").innerHTML = `<h3>🔑 Admin sign-in</h3>
+  $("#dlgBody").innerHTML = `<h3>🔑 Admin Sign-In</h3>
     <p>Admins can change routes, pins and info on this device. Everyone else can view, drive and share only.</p>
     <form id="adForm"><input id="adPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin password" style="width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px">
     <p id="adErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
-    <footer><button class="btn" type="button" id="adCancel">Cancel</button><button class="btn primary" type="submit">Sign in</button></footer></form>`;
+    <footer><button class="btn" type="button" id="adCancel">Cancel</button><button class="btn primary" type="submit">Admin Sign-In</button></footer></form>`;
   const d = $("#dlg"); if (!d.open) d.showModal(); $("#adPw").focus();
   $("#adCancel").onclick = () => d.close();
   $("#adForm").onsubmit = async e => {
@@ -2020,7 +2020,7 @@ function navBottom(s, meta, extra=""){
         return `<div style="background:#fef7e0;border:1px solid #f9e29c;color:#7a4f01;border-radius:8px;padding:6px 10px;margin-top:6px;font-weight:600">⚠ Already serviced on this run${v.t ? " at " + fmtT(v.t) : ""}${v.by ? " · " + esc(v.by) : ""}</div>`; })()}
       ${noteOf(s.places[0]) ? `<div class="nav-note">${esc(noteOf(s.places[0]))}</div>` : ""}</div></div>
     ${extra}
-    ${NAV.arrivedAt ? "" : `<div class="row" style="gap:8px;margin:8px 0">${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1;justify-content:center">✓ Done</button></div>`}
+    ${NAV.arrivedAt ? "" : `<div class="row" style="gap:8px;margin:8px 0">${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1;justify-content:center">✓ Record Progress</button></div>`}
     <div class="nav-btns">
       <button class="btn" id="nvPrev" title="Previous stop">◀</button>
       <button class="btn" id="nvSkip">Skip ▶</button>
@@ -2046,7 +2046,7 @@ function wireDone(s){
 }
 function navArrived(s){
   $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
-  navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1;justify-content:center">✓ Done, next stop</button></div>`);
+  navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1;justify-content:center">✓ Record Progress</button></div>`);
   wireDone(s);
 }
 function goStop(d){
@@ -2200,13 +2200,13 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
   function screen(mode){
     const head = `<div style="font-size:46px;line-height:1">${mode === "admin" ? "🔒" : "🔑"}</div><h2 style="margin:8px 0 4px;font-size:22px">${meta.title || "SALT Routes"}</h2>`;
     const body = mode === "admin"
-      ? `<p style="margin:0 0 14px;color:#5f6368">Admin sign-in</p>
+      ? `<p style="margin:0 0 14px;color:#5f6368">Admin Sign-In</p>
         <form id="ulForm"><input id="ulPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin password" style="${field}">
-        <button style="${btn}">Sign in</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`
+        <button style="${btn}">Admin Sign-In</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`
       : `<p style="margin:0 0 14px;color:#5f6368">Drivers: enter the PIN the office gave you.</p>
         <form id="ulForm"><input id="ulPin" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your PIN" style="${field};text-align:center;letter-spacing:.1em;text-transform:uppercase">
-        <button style="${btn}">Sign in</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`;
-    const foot = mode === "admin" ? `<a href="#" id="ulBack" style="color:#5f6368;font-size:14px">Driver sign-in</a>` : `<a href="#" id="ulAdmin" style="display:inline-block;background:#d93025;color:#fff;font-weight:700;font-size:17px;padding:10px 22px;border-radius:10px;text-decoration:none">🔑 Admin sign-in</a>`;
+        <button style="${btn}">Crew Sign-In</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`;
+    const foot = mode === "admin" ? `<a href="#" id="ulBack" style="color:#5f6368;font-size:15px;font-weight:600">Crew Sign-In</a>` : `<a href="#" id="ulAdmin" style="display:inline-block;background:#d93025;color:#fff;font-weight:700;font-size:17px;padding:10px 22px;border-radius:10px;text-decoration:none">🔑 Admin Sign-In</a>`;
     box.innerHTML = `<div style="background:#fff;border-radius:16px;padding:26px 22px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.18);text-align:center">${head}${body}<div style="margin-top:14px">${foot}</div></div>`;
     const a = box.querySelector("#ulAdmin"), bk = box.querySelector("#ulBack");
     if (a) a.onclick = e => { e.preventDefault(); screen("admin"); };
