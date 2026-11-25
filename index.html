@@ -284,6 +284,13 @@
 </style>
 </head>
 <body>
+<div id="boot" style="position:fixed;inset:0;z-index:200000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;transition:opacity .25s">
+  <div style="width:44px;height:44px;border:4px solid #e3e6ea;border-top-color:#1a73e8;border-radius:50%;animation:bootspin .8s linear infinite;margin-bottom:22px"></div>
+  <div style="font-size:30px;font-weight:700;color:#202124">Loading...</div>
+  <div style="font-size:18px;font-weight:700;color:#d93025;margin-top:6px;letter-spacing:.04em">Since 1958</div>
+  <style>@keyframes bootspin{to{transform:rotate(360deg)}}</style>
+</div>
+<script>window.__bootDone = function(){ var b = document.getElementById("boot"); if (!b) return; b.style.opacity = "0"; b.style.pointerEvents = "none"; setTimeout(function(){ b.remove(); }, 300); };</script>
 <div id="app">
   <header>
     <input id="mapTitle" aria-label="Map title" spellcheck="false"><span class="adminbadge edit-only">ADMIN</span>
@@ -2013,7 +2020,7 @@ function navBottom(s, meta, extra=""){
         return `<div style="background:#fef7e0;border:1px solid #f9e29c;color:#7a4f01;border-radius:8px;padding:6px 10px;margin-top:6px;font-weight:600">⚠ Already serviced on this run${v.t ? " at " + fmtT(v.t) : ""}${v.by ? " · " + esc(v.by) : ""}</div>`; })()}
       ${noteOf(s.places[0]) ? `<div class="nav-note">${esc(noteOf(s.places[0]))}</div>` : ""}</div></div>
     ${extra}
-    ${NAV.arrivedAt ? "" : `<div class="row" style="gap:8px;margin:8px 0">${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done</button></div>`}
+    ${NAV.arrivedAt ? "" : `<div class="row" style="gap:8px;margin:8px 0">${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1;justify-content:center">✓ Done</button></div>`}
     <div class="nav-btns">
       <button class="btn" id="nvPrev" title="Previous stop">◀</button>
       <button class="btn" id="nvSkip">Skip ▶</button>
@@ -2039,7 +2046,7 @@ function wireDone(s){
 }
 function navArrived(s){
   $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
-  navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1">✓ Done, next stop</button></div>`);
+  navBottom(s, "You're here", `<div class="row" style="gap:8px;margin:8px 0">${smChip(s.places[0]) || ""}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}<button class="btn primary" id="nvDone" style="flex:1;justify-content:center">✓ Done, next stop</button></div>`);
   wireDone(s);
 }
 function goStop(d){
@@ -2111,7 +2118,7 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
 // Admin password opens keys.enc (all keys). Drivers sign in with their PIN; the office's Google Sheet
 // (Apps Script) checks it and returns the keys for only the runs assigned to them right now.
 (async function(){
-  const run = () => window.__appMain();
+  const run = () => { try { return window.__appMain(); } finally { window.__bootDone(); } };
   const ok = window.crypto && crypto.subtle && "DecompressionStream" in window;
   if (window.EMBEDDED_MAP || /[#&]map=/.test(location.hash) || !/^https?:/.test(location.protocol) || !ok) return run();
   const b64d = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
@@ -2220,7 +2227,7 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
       if (okd){ clearHash(); box.remove(); run(); } else { go.disabled = false; go.textContent = label; inp.select(); }
     };
   }
-  document.body.appendChild(box);
+  document.body.appendChild(box); window.__bootDone();
   screen(wantAdmin ? "admin" : "pin");
 })();
 </script>
