@@ -150,6 +150,7 @@
   body.crew .crew-out-only{display:none!important}
   .donebtn{border:1.5px solid #188038;color:#188038;background:#fff;border-radius:10px;min-width:44px;min-height:40px;padding:6px 10px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
   .donebtn.on{background:#188038;color:#fff}
+  .donebtn.run{background:#d93025;border-color:#d93025;color:#fff;font-variant-numeric:tabular-nums}
   .actcol{display:flex;flex-direction:column;gap:6px;align-items:stretch}
   .photobtn{border:1.5px solid #1a73e8;color:#1a73e8;background:#fff;border-radius:10px;min-width:44px;min-height:38px;padding:4px 8px;font-size:17px;cursor:pointer}
   @media (max-width:760px){ .photo-body,.photo-body img,.photo-body iframe{height:120px} }
@@ -377,14 +378,14 @@
     "Close": "Cerrar", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
     // tooltips
     "Undo (Ctrl+Z)": "Deshacer (Ctrl+Z)", "Show or hide the map": "Mostrar u ocultar el mapa", "Draw lines between stops in order": "Dibujar líneas entre las paradas en orden",
-    "Drag to resize the map": "Arrastre para cambiar el tamaño del mapa", "Take or upload a photo": "Tomar o subir una foto", "Mark done": "Marcar como hecha",
+    "Drag to resize the map": "Arrastre para cambiar el tamaño del mapa", "Take or upload a photo": "Tomar o subir una foto", "Mark done": "Marcar como hecha", "Start service": "Iniciar servicio", "Stop and record progress": "Detener y registrar avance", "Mark not done": "Marcar como no hecha",
     "Move up": "Subir", "Move down": "Bajar", "Zoom in": "Acercar", "Zoom out": "Alejar", "Layers": "Capas", "Open": "Abrir",
     "Hide on map": "Ocultar en el mapa", "Drag to reorder": "Arrastre para reordenar", "Reset bearing and pitch": "Volver al norte"
   };
   var P = [
     [/^Stop (\S+) of (\d+) · (\d+) done$/, "Parada $1 de $2 · $3 hechas"],
     [/^✓ Record Progress · Stop (.+)$/, "✓ Registrar avance · Parada $1"],
-    [/^■ Stop · $/, "■ Detener · "], [/^■ Stop #(\S+) · $/, "■ Detener #$1 · "],
+    [/^■ Stop · $/, "■ Detener · "], [/^■ Stop & record · $/, "■ Detener y registrar · "], [/^■ Stop #(\S+) · $/, "■ Detener #$1 · "],
     [/^Starting at stop (\S+), the property you selected$/, "Empezando en la parada $1, la propiedad que eligió"],
     [/^⏱ Service started at stop (\S+)(.*)$/, "⏱ Servicio iniciado en la parada $1$2"],
     [/^📍 Arrival at stop (\S+) recorded$/, "📍 Llegada a la parada $1 registrada"],
@@ -488,7 +489,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 e</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 f</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -638,7 +639,7 @@ function popupHtml(l, p, i){
       <div class="photo-body"><div class="msg">Loading Street View…</div></div>
     </div>` : "";
   const isD = getDone(l).has(stopNum(p, i));
-  const acts = `<div class="pop-acts">${timerBtnHtml(l, stopNum(p, i), `type="button" class="pa-timer" data-ptimer="${p.id}"`)}<button type="button" class="pa-done${isD ? " on" : ""}" data-pdone="${p.id}">${isD ? "✓ Recorded · undo" : "✓ Record Progress"}</button>${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
+  const acts = `<div class="pop-acts">${timerBtnHtml(l, stopNum(p, i), `type="button" class="pa-timer" data-ptimer="${p.id}"`)}${isD ? `<button type="button" class="pa-done on" data-pdone="${p.id}">✓ Recorded · undo</button>` : ""}${logUrl() ? `<button type="button" class="pa-photo" data-pphoto="${p.id}">📷 Photo</button>` : ""}</div>`;
   return `<div class="pop">${acts}${photo}<b>${stopNum(p, i)}. ${esc(p.name || "Untitled")}</b>${p.address ? `<small>${esc(p.address)}</small>` : ""}
     <small>${esc(l.name)}</small>${noteOf(p) ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${smChip(p)}
     <div class="links"><a href="#" data-edit="${p.id}">Edit</a>${dir ? `<a href="${dir}" target="_blank" rel="noopener">Directions</a><a href="${streetLink(p)}" target="_blank" rel="noopener">Street View ↗</a>` : ""}</div></div>`;
@@ -647,8 +648,9 @@ function popupHtml(l, p, i){
 document.addEventListener("click", ev => {
   const pd = ev.target.closest && ev.target.closest("[data-pdone]");
   if (pd){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pd.dataset.pdone); if (!f) return;
+    if (!getDone(f.list).has(stopNum(f.place, f.index))) return;   // only "undo" lives here; recording starts with ▶ Start service
     completeStop(f.list, f.place, f.index, on => {
-      pd.textContent = on ? "✓ Recorded · undo" : "✓ Record Progress"; pd.classList.toggle("on", on);
+      if (!on) pd.remove();
       renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); }); return; }
   const pt = ev.target.closest && ev.target.closest("[data-ptimer]");
   if (pt){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pt.dataset.ptimer); if (!f) return;
@@ -657,7 +659,8 @@ document.addEventListener("click", ev => {
     const places = f.list.places.filter((q, k) => stopNum(q, k) === num);
     doneForm(f.list, places.length ? places : [f.place], num, det => { markDone(f.list, f.place, f.index, true, det); renderSide();
       document.querySelectorAll(`[data-ptimer="${f.place.id}"]`).forEach(b => b.outerHTML = timerBtnHtml(f.list, num, `type="button" class="pa-timer" data-ptimer="${f.place.id}"`));
-      const pd = document.querySelector(`[data-pdone="${f.place.id}"]`); if (pd){ pd.textContent = "✓ Recorded · undo"; pd.classList.add("on"); } });
+      const pt2 = document.querySelector(`[data-ptimer="${f.place.id}"]`);
+      if (pt2 && !document.querySelector(`[data-pdone="${f.place.id}"]`)) pt2.insertAdjacentHTML("afterend", `<button type="button" class="pa-done on" data-pdone="${f.place.id}">✓ Recorded · undo</button>`); });
     return; }
   const pp = ev.target.closest && ev.target.closest("[data-pphoto]");
   if (pp){ ev.preventDefault(); ev.stopPropagation(); const f = findPlace(pp.dataset.pphoto); if (f) takePhoto(f.list, f.place, stopNum(f.place, f.index)); }
@@ -869,7 +872,10 @@ function placeCard(l,p,i,others){
       <div class="place-body" data-go="${p.id}"><b>${esc(p.name || "Untitled")}</b>${p.address?`<small>${esc(p.address)}</small>`:""}
         ${noteOf(p) && !editing ? `<div class="note">${esc(noteOf(p))}</div>` : ""}${hasLoc(p) ? "" : `<div class="warn">⚠ No location yet: Edit → Set on map</div>`}${!editing ? smChip(p, `onclick="event.stopPropagation()"`) : ""}${isDone ? `<span class="donechip">✓ Done</span>` : ""}</div>
       <div class="place-actions">
-        <div class="actcol"><button class="donebtn${isDone ? " on" : ""}" data-done="${p.id}" title="${isDone ? "Mark not done" : "Mark done"}">${isDone ? "✓ Done" : "✓"}</button>${logUrl() ? `<button class="photobtn" data-pphoto="${p.id}" title="Take or upload a photo">📷</button>` : ""}</div>
+        <div class="actcol">${(() => { const t0 = timerGet(l, stopNum(p, i));
+          return isDone && !t0 ? `<button class="donebtn on" data-done="${p.id}" title="Mark not done">✓ Done</button>`
+            : t0 ? `<button class="donebtn run" data-done="${p.id}" title="Stop and record progress">■ <span data-tclock="${t0}">${fmtClock(Date.now() - t0)}</span></button>`
+            : `<button class="donebtn" data-done="${p.id}" title="Start service">▶</button>`; })()}${logUrl() ? `<button class="photobtn" data-pphoto="${p.id}" title="Take or upload a photo">📷</button>` : ""}</div>
         <button class="icon" data-up="${p.id}" title="Move up" ${i===0?"disabled":""}>▲</button>
         <button class="icon" data-down="${p.id}" title="Move down" ${i===l.places.length-1?"disabled":""}>▼</button>
         <button class="icon" data-edit="${p.id}" title="Edit">✎</button>
@@ -941,7 +947,9 @@ function bindDetailView(l){
   side.querySelectorAll("[data-edit]").forEach(el => el.onclick = () => { ui.editPlace = ui.editPlace === el.dataset.edit ? null : el.dataset.edit; ui.selPlace = el.dataset.edit; renderSide(); scrollToPlace(el.dataset.edit); });
   const move = (id, d) => { const i = l.places.findIndex(p => p.id === id), j = i + d; if (j < 0 || j >= l.places.length) return; commit(() => { const [x] = l.places.splice(i,1); l.places.splice(j,0,x); }, {noFit: true}); };
   side.querySelectorAll("[data-done]").forEach(el => el.onclick = ev => { ev.stopPropagation(); const f = findPlace(el.dataset.done); if (!f) return;
-    completeStop(f.list, f.place, f.index, on => { renderSide(); toast(on ? "Stop " + stopNum(f.place, f.index) + " done ✓" : "Marked not done"); }); });
+    const num = stopNum(f.place, f.index);
+    if (!getDone(f.list).has(num) && !timerGet(f.list, num)){ timerStart(f.list, num); renderSide(); toast("⏱ Service started at stop " + num); return; }
+    completeStop(f.list, f.place, f.index, on => { renderSide(); toast(on ? "Stop " + num + " done ✓" : "Marked not done"); }); });
   side.querySelectorAll("[data-up]").forEach(el => el.onclick = () => move(el.dataset.up, -1));
   side.querySelectorAll("[data-down]").forEach(el => el.onclick = () => move(el.dataset.down, 1));
   side.querySelectorAll("[data-form]").forEach(f => {
@@ -1514,7 +1522,7 @@ const svcDur = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600)
 const fmtClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
 function timerBtnHtml(l, num, attrs){
   const t0 = timerGet(l, num);
-  return t0 ? `<button ${attrs.replace(/class="([^"]*)"/, 'class="$1 run"')}>■ Stop · <span data-tclock="${t0}">${fmtClock(Date.now() - t0)}</span></button>`
+  return t0 ? `<button ${attrs.replace(/class="([^"]*)"/, 'class="$1 run"')}>■ Stop &amp; record · <span data-tclock="${t0}">${fmtClock(Date.now() - t0)}</span></button>`
             : `<button ${attrs}>▶ Start service</button>`;
 }
 setInterval(() => document.querySelectorAll("[data-tclock]").forEach(e => e.textContent = fmtClock(Date.now() - +e.dataset.tclock)), 1000);
@@ -2410,16 +2418,18 @@ function navBottom(s, meta, extra=""){
   wireDone(s);
 }
 function workRows(s){
-  return `<div class="row" style="gap:8px;margin:8px 0">${timerBtnHtml(NAV.list, s.num, `class="btn tbtn" id="nvTimer" style="flex:1;justify-content:center"`)}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}</div>
-    <button class="btn primary" id="nvDone" style="width:100%;justify-content:center;margin-bottom:8px">✓ Record Progress</button>`;
+  return `<div class="row" style="gap:8px;margin:8px 0">${timerBtnHtml(NAV.list, s.num, `class="btn tbtn" id="nvTimer" style="flex:1;justify-content:center;min-height:46px"`)}${logUrl() ? `<button class="btn" id="nvPhoto">📷 Photo</button>` : ""}</div>`;
 }
+// Start service → (timer runs) → Stop opens Record Progress; saving moves Drive on to the next stop
 function wireDone(s){
-  const nt = $("#nvTimer"); if (nt) nt.onclick = () => { if (!timerGet(NAV.list, s.num)){ timerStart(NAV.list, s.num); nt.outerHTML = timerBtnHtml(NAV.list, s.num, `class="btn tbtn" id="nvTimer" style="flex:1;justify-content:center"`); wireDone(s); toast("⏱ Service started"); } else $("#nvDone").click(); };
+  const nt = $("#nvTimer"); if (nt) nt.onclick = () => {
+    if (!timerGet(NAV.list, s.num)){ timerStart(NAV.list, s.num); nt.outerHTML = timerBtnHtml(NAV.list, s.num, `class="btn tbtn" id="nvTimer" style="flex:1;justify-content:center;min-height:46px"`); wireDone(s); toast("⏱ Service started"); return; }
+    doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
+      const n = nextUndone(NAV.idx + 1) >= 0 ? nextUndone(NAV.idx + 1) : nextUndone(0);
+      if (n < 0){ say("Route complete"); toast("Route complete. Every stop is done."); stopNav(); return; }
+      NAV.idx = n; NAV.arrivedAt = null; NAV.route = null; drawNav(); fetchRoute(); });
+  };
   const np = $("#nvPhoto"); if (np) np.onclick = () => takePhoto(NAV.list, s.target, s.num);
-  const nd = $("#nvDone"); if (nd) nd.onclick = () => doneForm(NAV.list, s.places, s.num, det => { const d = getDone(NAV.list); d.add(s.num); setDone(NAV.list, d); stampDone(NAV.list, s.num); renderSide(); logEvent("done", NAV.list, s.target, s.num, "", det);
-    const n = nextUndone(NAV.idx + 1) >= 0 ? nextUndone(NAV.idx + 1) : nextUndone(0);
-    if (n < 0){ say("Route complete"); toast("Route complete. Every stop is done."); stopNav(); return; }
-    NAV.idx = n; NAV.arrivedAt = null; NAV.route = null; drawNav(); fetchRoute(); });
 }
 function navArrived(s){
   $("#navTop").innerHTML = `<div class="nav-arrow">🏁</div><div class="nav-text"><div class="nav-dist">Arrived</div><div class="nav-instr">Stop ${s.num} · ${esc(s.target.name)}</div></div>`;
