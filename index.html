@@ -1267,18 +1267,21 @@ function editAccess(kind, x){
       <button class="btn" id="dvGen" type="button">🎲 New</button></div>`}
     <div style="display:flex;justify-content:space-between;align-items:center"><b>What they can see</b><span><a href="#" id="dvAll">Select all</a> · <a href="#" id="dvNone">None</a></span></div>
     <small style="color:#6b7385">Tick a whole run, or tap <b>Pick properties</b> to give only some stops.</small>
-    <div id="dvRuns" style="max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:2px 10px;margin-top:6px"></div>
-    <p id="dvErr" style="color:var(--danger);min-height:20px;margin:8px 0 0"></p>
-    <footer><button class="btn" id="dvBack">Back</button><button class="btn primary" id="dvSave">Save</button></footer>`;
+    <div id="dvRuns" style="border:1px solid var(--line);border-radius:10px;padding:2px 10px;margin-top:6px"></div>
+    <footer style="position:sticky;bottom:0;background:#fff;padding:8px 0 4px;margin-top:6px;box-shadow:0 -8px 10px -6px #0002;flex-wrap:wrap">
+      <p id="dvErr" style="color:var(--danger);margin:0 0 4px;flex:1 1 100%;font-size:14px"></p>
+      <button class="btn" id="dvBack">Back</button><button class="btn primary" id="dvSave">Save</button></footer>`;
   const open = new Set();
   const draw = () => {
-    const keepTop = $("#dvRuns").scrollTop;
+    const dlgEl = $("#dlg"), keepTop = dlgEl.scrollTop;
     $("#dvRuns").innerHTML = S.lists.map(l => { const st = runStops(l), cur = sel.get(l.id) || new Set(), n = st.filter(s => cur.has(s.num)).length;
       return `<div style="border-bottom:1px solid #f0f2f5;padding:6px 0">
-        <div style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-run="${l.id}" ${n && n === st.length ? "checked" : ""} style="width:20px;height:20px;flex:none">
-          <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex:none"></span>
-          <span style="flex:1;min-width:0">${esc(l.name)} <small style="color:${n && n < st.length ? "#b06000;font-weight:700" : "#6b7385"}">· ${n && n < st.length ? n + " of " : ""}${st.length} stops</small></span>
-          <a href="#" data-popen="${l.id}" style="white-space:nowrap;font-size:14px">${open.has(l.id) ? "Hide ▴" : "Pick properties ▾"}</a></div>
+        <div style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" data-run="${l.id}" ${n && n === st.length ? "checked" : ""} style="width:22px;height:22px;flex:none;margin:2px 0 0">
+          <span style="width:12px;height:12px;border-radius:50%;background:${l.color};flex:none;margin-top:7px"></span>
+          <span style="flex:1;min-width:0;line-height:1.35"><span style="font-weight:600">${esc(l.name)}</span>
+            <span style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:2px">
+              <small style="color:${n && n < st.length ? "#b06000;font-weight:700" : "#6b7385"}">${n && n < st.length ? n + " of " : ""}${st.length} stops</small>
+              <a href="#" data-popen="${l.id}" style="white-space:nowrap;font-size:14px;padding:4px 0">${open.has(l.id) ? "Hide ▴" : "Pick properties ▾"}</a></span></span></div>
         ${open.has(l.id) ? `<div style="margin:6px 0 4px 30px;border-left:3px solid #e8f0fe;padding-left:10px">
           <div style="font-size:13.5px;margin-bottom:2px"><a href="#" data-sall="${l.id}">Select all</a> · <a href="#" data-snone="${l.id}">None</a></div>
           ${st.map(s => `<label style="display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer"><input type="checkbox" data-stop="${l.id}|${esc(s.num)}" ${cur.has(s.num) ? "checked" : ""} style="width:20px;height:20px;flex:none"><span><b>#${esc(s.num)}</b> ${esc(s.name)}</span></label>`).join("")}</div>` : ""}</div>`; }).join("");
@@ -1290,7 +1293,7 @@ function editAccess(kind, x){
     $("#dvRuns").querySelectorAll("[data-snone]").forEach(a => a.onclick = e => { e.preventDefault(); sel.delete(a.dataset.snone); draw(); });
     $("#dvRuns").querySelectorAll("[data-stop]").forEach(b => b.onchange = () => { const [id, num] = b.dataset.stop.split("|"); const cur = sel.get(id) || new Set();
       b.checked ? cur.add(num) : cur.delete(num); cur.size ? sel.set(id, cur) : sel.delete(id); draw(); });
-    $("#dvRuns").scrollTop = keepTop;
+    dlgEl.scrollTop = keepTop;
   };
   draw();
   $("#dvAll").onclick = e => { e.preventDefault(); S.lists.forEach(l => sel.set(l.id, new Set(runStops(l).map(s => s.num)))); draw(); };
