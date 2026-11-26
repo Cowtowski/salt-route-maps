@@ -375,7 +375,9 @@
     "View only. Only the admin can change routes.": "Solo lectura. Solo el admin puede cambiar las rutas.",
     "⏱ Service started": "⏱ Servicio iniciado", "Couldn't read that photo": "No se pudo leer esa foto", "Searching…": "Buscando…",
     "Search failed. Check your connection.": "La búsqueda falló. Revise su conexión.", "This route has no mapped stops": "Esta ruta no tiene paradas en el mapa",
-    "Close": "Cerrar", "📱 Phone": "📱 Teléfono", "SMS and WhatsApp open with this number and the message already filled in. Just tap Send.": "SMS y WhatsApp se abren con este número y el mensaje ya escrito. Solo toque Enviar.", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
+    "Close": "Cerrar", "4-digit PIN": "PIN de 4 dígitos", "Sign out (helper)": "Cerrar sesión (ayudante)", "👷 My helpers": "👷 Mis ayudantes", "＋ Add helper": "＋ Agregar ayudante",
+    "Add & get PIN": "Agregar y obtener PIN", "Signing out…": "Cerrando sesión…", "Sign out?": "¿Cerrar sesión?", "Sign out": "Cerrar sesión", "No helpers yet.": "Todavía no hay ayudantes.",
+    "Helper's first & last name": "Nombre y apellido del ayudante", "Phone (optional)": "Teléfono (opcional)", "Phone": "Teléfono", "📱 Phone": "📱 Teléfono", "SMS and WhatsApp open with this number and the message already filled in. Just tap Send.": "SMS y WhatsApp se abren con este número y el mensaje ya escrito. Solo toque Enviar.", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
     // tooltips
     "Undo (Ctrl+Z)": "Deshacer (Ctrl+Z)", "Show or hide the map": "Mostrar u ocultar el mapa", "Draw lines between stops in order": "Dibujar líneas entre las paradas en orden",
     "Drag to resize the map": "Arrastre para cambiar el tamaño del mapa", "Take or upload a photo": "Tomar o subir una foto", "Mark done": "Marcar como hecha", "Start service": "Iniciar servicio", "Stop and record progress": "Detener y registrar avance", "Mark not done": "Marcar como no hecha",
@@ -397,7 +399,7 @@
     [/^Hi (.+), which truck are you in\? It's saved on this phone and added to each completed stop\.$/, "Hola $1, ¿en qué camión va? Se guarda en este teléfono y se agrega a cada parada completada."],
     [/^\(started (.+)\)\. Saving stops the timer\.$/, " (inició a las $1). Al guardar se detiene el cronómetro."],
     [/^run left ≈ (.+)$/, "faltan ≈ $1"], [/^(.+) · run left ≈ (.+)$/, "$1 · faltan ≈ $2"],
-    [/^Hi (.+)$/, "Hola $1"]
+    [/^👷 Helper with (.+)$/, "👷 Ayudante con $1"], [/^Hi (.+)$/, "Hola $1"]
   ];
   // Spoken + written turn-by-turn directions
   var DIR = {"left": "a la izquierda", "right": "a la derecha", "slight left": "ligeramente a la izquierda", "slight right": "ligeramente a la derecha",
@@ -475,6 +477,7 @@
         <button data-act="crew-in" class="crew-out-only local-only">🔓 Crew Sign-In (show codes)</button>
         <button data-act="progress" class="edit-only">📊 Storm progress</button>
         <button data-act="truck">🚚 Truck &amp; helpers</button>
+        <button data-act="myhelpers" id="myHelpersBtn" style="display:none">👷 My helpers</button>
         <button data-act="lang" id="langBtn">Español</button>
         <button data-act="crew-out" class="crew-only local-only">Crew sign out</button>
         <button data-act="signout" class="site-only view-only">Sign out of this phone</button>
@@ -489,7 +492,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 h</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 i</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1030,11 +1033,85 @@ function crewSignIn(then){
 }
 function crewSignOut(){ CREW_PW = ""; PRIV = {}; PRIV_LOADED = false; try { localStorage.removeItem("routemaps:crew"); } catch(e){} applyCrew(); render({noFit: true}); toast("Signed out of crew mode."); }
 async function initCrew(){
-  if (ACCESS){ CREW_PW = ACCESS.logKey || ""; PRIV_LOADED = true; applyCrew(); flushLog(); return; }
+  if (ACCESS){ CREW_PW = ACCESS.logKey || ""; PRIV_LOADED = true; applyCrew(); flushLog(); startSession(); return; }
   const pw = lsGet("routemaps:crew"); if (!pw) return;
   if (!(await crewOk(pw))){ try { localStorage.removeItem("routemaps:crew"); } catch(e){} return; }
   CREW_PW = pw; applyCrew();
   if (await loadPriv(pw)) render({noFit: true});
+}
+// ---------- Crew session: truck & helpers at sign-in, GPS at sign-in/out, helper sign-out, a driver's helpers ----------
+function startSession(){
+  if (!ACCESS || ACCESS.role !== "crew") return;
+  if (IS_HELPER){
+    const dv = lsGet("routemaps:driver") || {}; lsSet("routemaps:driver", {...dv, name: ACCESS.name, truck: ACCESS.truck || dv.truck || "", helpers: []});
+    const hb = document.createElement("button"); hb.className = "btn"; hb.id = "helperOut";
+    hb.style.cssText = "background:#d93025;border-color:#d93025;color:#fff;font-weight:700";
+    hb.textContent = "Sign out (helper)"; hb.title = "Signs this helper out";
+    const hdr = $("header"); hdr.insertBefore(hb, hdr.querySelector(".spacer") || null);
+    hb.onclick = () => { $("#dlgBody").innerHTML = `<h3>Sign out?</h3><p>${esc(ACCESS.name)} will be signed out on this phone. Your location is recorded in the log.</p>
+      <footer><button class="btn" id="hoNo">Cancel</button><button class="btn danger" id="hoYes">Sign out</button></footer>`;
+      const d = $("#dlg"); if (!d.open) d.showModal(); $("#hoNo").onclick = () => d.close(); $("#hoYes").onclick = () => { d.close(); signOutSite(false); }; };
+    const banner = document.createElement("div");
+    banner.style.cssText = "background:#e6f4ea;color:#137333;font-size:14px;text-align:center;padding:4px 8px;flex:1 1 100%";
+    banner.textContent = "👷 Helper with " + ACCESS.driverName + (ACCESS.truck ? " · Truck " + ACCESS.truck : ""); hdr.appendChild(banner);
+  }
+  if (!ACCESS.fresh) return;
+  try { const a = JSON.parse(localStorage.getItem("routemaps:access")); delete a.fresh; localStorage.setItem("routemaps:access", JSON.stringify(a)); } catch(e){}
+  ACCESS.fresh = false;
+  const signedIn = () => logEvent("signin", null, null, "", "", {});
+  if (IS_HELPER) return signedIn();
+  askDriver(signedIn);                 // every sign-in: truck # and helpers, then the sign-in (with GPS) goes to the log
+}
+// A driver's helpers: they sign in on their own phone with their own PIN and see the same runs
+async function openMyHelpers(){
+  if (!IS_DRIVER || !window.__rmApi) return;
+  $("#dlgBody").innerHTML = `<h3>👷 My helpers</h3><div id="mhBody"><p>Loading…</p></div>
+    <footer><button class="btn" id="mhClose">Close</button><button class="btn primary" id="mhAdd">＋ Add helper</button></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal(); $("#mhClose").onclick = () => d.close();
+  $("#mhAdd").onclick = () => addMyHelper();
+  let j; try { j = await window.__rmApi({action: "crew.helpers", pin: ACCESS.pin}); } catch(e){}
+  if (!$("#mhBody")) return;
+  if (!j || !j.ok){ $("#mhBody").innerHTML = `<p style="color:var(--danger)">${j && j.error === "Unknown action" ? "Helpers need the updated Google Sheet script." : "Couldn't reach the office. Check your signal and try again."}</p>`; return; }
+  const hs = j.helpers || [];
+  $("#mhBody").innerHTML = `<p style="font-size:14px;color:#3c4352;margin-top:0">Helpers sign in on their own phone with their own PIN. They see your runs and can record work. Only they (or the office) can sign them out.</p>
+    ${hs.length ? hs.map((h, i) => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>👷 ${esc(h.name)}</b><span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(h.pin)}</span></div>
+      ${h.phone ? `<small style="color:#6b7385">📱 ${esc(h.phone)}</small>` : ""}
+      <div style="margin-top:8px"><button class="btn" data-mhsend="${i}" style="min-height:36px">📤 Send sign-in</button></div></div>`).join("") : `<p>No helpers yet.</p>`}`;
+  $("#mhBody").querySelectorAll("[data-mhsend]").forEach(b => b.onclick = () => sendHelperPin(hs[+b.dataset.mhsend]));
+}
+function addMyHelper(){
+  const fld = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin:4px 0 12px";
+  $("#dlgBody").innerHTML = `<h3>＋ Add helper</h3>
+    <label style="font-weight:600">Helper's First &amp; Last Name</label><input id="mhName" autocapitalize="words" style="${fld}">
+    <label style="font-weight:600">Phone</label><input id="mhPhone" type="tel" inputmode="tel" placeholder="e.g. 416 555 0123" style="${fld}">
+    <p id="mhErr" style="color:var(--danger);min-height:20px;margin:0"></p>
+    <footer><button class="btn" id="mhBack">Back</button><button class="btn primary" id="mhSave">Add &amp; get PIN</button></footer>`;
+  $("#mhName").focus(); $("#mhBack").onclick = () => openMyHelpers();
+  $("#mhSave").onclick = async () => {
+    const name = $("#mhName").value.trim().replace(/\s+/g, " "), phone = $("#mhPhone").value.trim();
+    if (!name) return ($("#mhErr").textContent = "Type the helper's name.");
+    $("#mhSave").disabled = true; $("#mhSave").textContent = "Adding…";
+    let j; try { j = await window.__rmApi({action: "crew.addHelper", pin: ACCESS.pin, helper: {name, phone}}); } catch(e){}
+    if (!j || !j.ok){ $("#mhSave").disabled = false; $("#mhSave").textContent = "Add & get PIN"; return ($("#mhErr").textContent = "Couldn't add the helper. Check your signal and try again."); }
+    sendHelperPin(j.helper);
+  };
+}
+function sendHelperPin(h){
+  const msg = `👷 ${h.name}, you're helping ${ACCESS.name} on the salt runs.\n\nOpen this link: ${HOSTED}\nYour PIN: ${h.pin}\n\nYou'll see the same runs and can record work. Tap "Sign out (helper)" at the top when you're done.`;
+  let n = String(h.phone || "").replace(/\D/g, ""); if (n.length === 10) n = "1" + n;
+  $("#dlgBody").innerHTML = `<h3>📤 Send ${esc(h.name)} their PIN</h3>
+    <div class="pinbox"><small>PIN</small><div class="pincode">${esc(h.pin)}</div></div>
+    <textarea id="mhMsg" style="width:100%;box-sizing:border-box;min-height:130px;font:15px/1.4 system-ui;padding:10px;border:1px solid var(--line);border-radius:10px;margin-top:10px">${esc(msg)}</textarea>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" id="mhWa" style="background:#25d366;border-color:#25d366;color:#fff">WhatsApp</button>
+      <button class="btn" id="mhSms">💬 SMS</button><button class="btn" id="mhCopy">Copy text</button></div>
+    <footer><button class="btn" id="mhDone">Done</button></footer>`;
+  const d = $("#dlg"); if (!d.open) d.showModal();
+  const txt = () => encodeURIComponent($("#mhMsg").value);
+  $("#mhWa").onclick = () => window.open("https://wa.me/" + (n.length >= 11 ? n : "") + "?text=" + txt(), "_blank", "noopener");
+  $("#mhSms").onclick = () => { location.href = "sms:" + (n.length >= 11 ? "+" + n : "") + "?&body=" + txt(); };
+  $("#mhCopy").onclick = async () => { try { await navigator.clipboard.writeText($("#mhMsg").value); toast("Copied"); } catch(e){ $("#mhMsg").select(); } };
+  $("#mhDone").onclick = () => openMyHelpers();
 }
 // A copy of some lists that is safe to send outside the app (codes hidden).
 const pubLists = lists => lists.map(l => ({...l, places: l.places.map(p => ({...p, note: redact(noteOf(p))}))}));
@@ -1096,7 +1173,13 @@ async function getAdminKeys(){
     a.err("Wrong password.");
   }
 }
-function signOutSite(toAdmin){
+async function signOutSite(toAdmin){
+  if (ACCESS && ACCESS.role === "crew" && logUrl()){          // record where they signed out
+    toast("Signing out…", 4000);
+    const until = Date.now() + 9000;
+    await logEvent("signout", null, null, "", "", {});
+    while (Date.now() < until && (lsGet(LOGQ) || []).length){ await flushLog(); await new Promise(r => setTimeout(r, 400)); }
+  }
   try { localStorage.removeItem("routemaps:access"); localStorage.removeItem("routemaps:admin"); localStorage.removeItem("routemaps:crew"); } catch(e){}
   location.hash = toAdmin ? "admin" : ""; location.reload();
 }
@@ -1221,7 +1304,7 @@ async function openDrivers(tab){
   // search + sort; items keep their position in the original list (i) for the buttons
   const shown = (arr, pinOf, whenOf) => {
     const q = DV_Q.trim().toLowerCase();
-    let v = arr.map((x, i) => ({x, i})).filter(({x}) => !q || [x.name, pinOf(x), ...accessPlain(x.runs, x.stops)].join(" ").toLowerCase().includes(q));
+    let v = arr.map((x, i) => ({x, i})).filter(({x}) => !q || [x.name, pinOf(x), x.phone || "", ...(x.helpers || []).map(h => h.name), ...accessPlain(x.runs, x.stops)].join(" ").toLowerCase().includes(q));
     const byName = (a, b) => String(a.x.name).localeCompare(String(b.x.name), undefined, {sensitivity: "base"});
     if (DV_SORT === "az") v.sort(byName); else if (DV_SORT === "za") v.sort((a, b) => byName(b, a));
     else v.sort((a, b) => (whenOf(a) - whenOf(b)) * (DV_SORT === "new" ? -1 : 1));
@@ -1250,7 +1333,7 @@ async function openDrivers(tab){
       $("#dvBody").querySelectorAll("[data-gedit]").forEach(b => b.onclick = () => editAccess("guest", GUESTS[+b.dataset.gedit]));
       $("#dvBody").querySelectorAll("[data-gend]").forEach(b => b.onclick = () => endGuest(GUESTS[+b.dataset.gend]));
       $("#dvBody").querySelectorAll("[data-gsend]").forEach(b => b.onclick = () => { const x = GUESTS[+b.dataset.gsend];
-        SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.code, name: x.name}; openShareDialog(); });
+        SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.code, name: x.name, phone: x.phone}; openShareDialog(); });
     };
     return draw();
   }
@@ -1263,6 +1346,8 @@ async function openDrivers(tab){
       : `<div style="max-height:48vh;overflow:auto">${v.map(({x, i}) => card(`
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:16px">${esc(x.name)}</b>
           <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(x.pin)}</span></div>
+        ${x.phone ? `<small style="color:#6b7385;display:block">📱 ${esc(x.phone)}</small>` : ""}
+        ${(x.helpers || []).length ? `<small style="color:#137333;display:block">👷 ${x.helpers.map(h => esc(h.name)).join(", ")}</small>` : ""}
         <small style="color:#3c4352;display:block;margin:4px 0 8px">${x.runs.length ? accessText(x.runs, x.stops) : "<i>No runs assigned</i>"}</small>
         <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn" data-dvedit="${i}" style="min-height:36px">✏️ Edit</button>
           <button class="btn" data-dvsend="${i}" style="min-height:36px">📤 Send sign-in</button>
@@ -1271,7 +1356,7 @@ async function openDrivers(tab){
     $("#dvBody").querySelectorAll("[data-dvedit]").forEach(b => b.onclick = () => editAccess("driver", DRIVERS[+b.dataset.dvedit]));
     $("#dvBody").querySelectorAll("[data-dvdel]").forEach(b => b.onclick = () => deleteDriver(DRIVERS[+b.dataset.dvdel]));
     $("#dvBody").querySelectorAll("[data-dvsend]").forEach(b => b.onclick = () => { const x = DRIVERS[+b.dataset.dvsend];
-      SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.pin, name: x.name}; openShareDialog(); });
+      SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: x.pin, name: x.name, phone: x.phone}; openShareDialog(); });
   };
   draw();
 }
@@ -1280,7 +1365,7 @@ function editAccess(kind, x){
   const guest = kind === "guest";
   const sel = new Map();   // run id -> Set of stop numbers
   S.lists.forEach(l => { if (x && x.runs.includes(l.id)) sel.set(l.id, new Set(x.stops && x.stops[l.id] ? x.stops[l.id] : runStops(l).map(s => s.num))); });
-  const suggest = () => { const r = crypto.getRandomValues(new Uint8Array(6)); let p = ""; r.forEach(v => p += "0123456789"[v % 10]); return p; };
+  const suggest = () => { const r = crypto.getRandomValues(new Uint8Array(4)); let p = ""; r.forEach(v => p += "0123456789"[v % 10]); return p; };
   const fld = "width:100%;box-sizing:border-box;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px";
   const endOpts = [["", "Until I end it"], ["today", "End of today"], ["24h", "24 hours from now"], ["3d", "3 days from now"], ["7d", "7 days from now"]];
   $("#dlgBody").innerHTML = `<h3>${x ? "Edit " + esc(x.name) : guest ? "＋ Add guest" : "＋ Add driver"}</h3>
@@ -1290,9 +1375,17 @@ function editAccess(kind, x){
       <div style="font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;margin:4px 0 12px;color:#174ea6">${x ? esc(x.code) : "<span style='font:400 15px system-ui;color:#6b7385'>Picked from the ready-made guest PINs when you save</span>"}</div>
       <label style="display:block;font-weight:600">Access ends</label>
       <select id="gEnd" style="${fld};margin:4px 0 12px">${x && x.expires ? `<option value="keep" selected>Until ${esc(fmtWhen(x.expires))} (no change)</option>` : ""}${endOpts.map(([v, t]) => `<option value="${v}" ${x && !x.expires && v === "" ? "selected" : ""}>${t}</option>`).join("")}</select>`
-    : `<label style="display:block;font-weight:600">PIN <small style="font-weight:400;color:#6b7385">(at least 6 letters or numbers, their own)</small></label>
-      <div class="row" style="gap:8px;margin:4px 0 12px"><input id="dvPin" value="${esc(x ? x.pin : suggest())}" autocapitalize="characters" spellcheck="false" style="${fld};flex:1;font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase">
-      <button class="btn" id="dvGen" type="button">🎲 New</button></div>`}
+    : `<label style="display:block;font-weight:600">PIN <small style="font-weight:400;color:#6b7385">(4 numbers, their own)</small></label>
+      <div class="row" style="gap:8px;margin:4px 0 4px"><input id="dvPin" value="${esc(x ? x.pin : suggest())}" inputmode="numeric" maxlength="4" spellcheck="false" style="${fld};flex:1;font:700 20px ui-monospace,Consolas,monospace;letter-spacing:.3em">
+      <button class="btn" id="dvGen" type="button">🎲 New</button></div>
+      ${x && !/^\d{4}$/.test(x.pin) ? `<small style="color:#b06000;display:block">Old-style PIN. Tap 🎲 New (or type 4 numbers) to switch them to a 4-number PIN.</small>` : ""}
+      <div style="margin-bottom:12px"></div>`}
+    <label style="display:block;font-weight:600">📱 Phone <small style="font-weight:400;color:#6b7385">(for sending their sign-in by SMS / WhatsApp)</small></label>
+    <input id="dvPhone" type="tel" inputmode="tel" value="${esc(x && x.phone || "")}" placeholder="e.g. 416 555 0123" style="${fld};margin:4px 0 12px">
+    ${!guest && x ? `<div style="display:flex;justify-content:space-between;align-items:center"><b>👷 Helpers</b><a href="#" id="dvAddH">＋ Add helper</a></div>
+      <div id="dvHelpers" style="margin:4px 0 12px">${(x.helpers || []).length ? x.helpers.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin:4px 0">
+        <span>👷 ${esc(h.name)} <small style="color:#6b7385">PIN ${esc(h.pin)}${h.phone ? " · 📱 " + esc(h.phone) : ""}</small></span>
+        <button class="btn danger" data-hdel="${esc(h.id)}" style="min-height:32px;padding:0 10px">Remove</button></div>`).join("") : `<small style="color:#6b7385">None. Helpers sign in on their own phone and see the same runs as ${esc(x.name)}.</small>`}</div>` : ""}
     <div style="display:flex;justify-content:space-between;align-items:center"><b>What they can see</b><span><a href="#" id="dvAll">Select all</a> · <a href="#" id="dvNone">None</a></span></div>
     <small style="color:#6b7385">Tick a whole run, or tap <b>Pick properties</b> to give only some stops.</small>
     <div id="dvRuns" style="border:1px solid var(--line);border-radius:10px;padding:2px 10px;margin-top:6px"></div>
@@ -1327,6 +1420,21 @@ function editAccess(kind, x){
   $("#dvAll").onclick = e => { e.preventDefault(); S.lists.forEach(l => sel.set(l.id, new Set(runStops(l).map(s => s.num)))); draw(); };
   $("#dvNone").onclick = e => { e.preventDefault(); sel.clear(); draw(); };
   const gen = $("#dvGen"); if (gen) gen.onclick = () => { $("#dvPin").value = suggest(); };
+  const ah = $("#dvAddH"); if (ah) ah.onclick = e => { e.preventDefault(); if ($("#dvHNew")) return;
+    $("#dvHelpers").insertAdjacentHTML("beforeend", `<div id="dvHNew" style="border:1px dashed #9aa0a6;border-radius:10px;padding:8px;margin:6px 0">
+      <input id="dvHName" placeholder="Helper's first & last name" autocapitalize="words" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
+      <input id="dvHPhone" type="tel" inputmode="tel" placeholder="Phone (optional)" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
+      <button class="btn primary" id="dvHGo" type="button">Add &amp; get PIN</button></div>`);
+    $("#dvHName").focus();
+    $("#dvHGo").onclick = async () => { const nm = $("#dvHName").value.trim().replace(/\s+/g, " "), ph = $("#dvHPhone").value.trim(); if (!nm) return $("#dvHName").focus();
+    $("#dvHGo").disabled = true;
+    const r = await adminApi("helpers.save", {helper: {driverId: x.id, name: nm.trim(), phone: ph.trim()}});
+    if (!r || !r.ok){ $("#dvHGo").disabled = false; return toast(r && r.error === "Unknown action" ? "Helpers need the updated Google Sheet script." : "Couldn't add: " + apiErr(r), 4000); }
+    toast(`${nm.trim()} added · PIN ${r.helper.pin}`, 5000); x.helpers = (x.helpers || []).concat(r.helper);
+    SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: r.helper.pin, name: nm.trim(), phone: ph.trim()}; openShareDialog(); }; };
+  document.querySelectorAll("[data-hdel]").forEach(b => b.onclick = async () => { const h = (x.helpers || []).find(q => q.id === b.dataset.hdel); if (!h) return;
+    b.disabled = true; const r = await adminApi("helpers.delete", {id: h.id}); if (!r || !r.ok){ b.disabled = false; return toast("Couldn't remove: " + apiErr(r), 4000); }
+    x.helpers = x.helpers.filter(q => q.id !== h.id); toast(h.name + " removed. Their PIN stops working within 2 minutes."); editAccess(kind, x); });
   $("#dvBack").onclick = () => openDrivers();
   $("#dvName").focus();
   $("#dvSave").onclick = async () => {
@@ -1335,7 +1443,8 @@ function editAccess(kind, x){
     runs.forEach(id => { const st = runStops(getList(id)), cur = sel.get(id); if (cur.size < st.length) stops[id] = st.map(s => s.num).filter(n => cur.has(n)); });
     if (!name) return ($("#dvErr").textContent = guest ? "Type the guest's name." : "Type the driver's name.");
     let pin = "";
-    if (!guest){ pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (pin.length < 6) return ($("#dvErr").textContent = "PINs need at least 6 letters or numbers."); }
+    if (!guest){ pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (!/^\d{4}$/.test(pin) && !(x && pin === x.pin)) return ($("#dvErr").textContent = "PINs are 4 numbers, e.g. 4821."); }
+    const phone = $("#dvPhone").value.trim();
     if (Object.keys(stops).length && SHEET_V < 2){ const chk = await adminApi("drivers.list"); if (chk && chk.ok) SHEET_V = chk.v || 1; }
     if (Object.keys(stops).length && SHEET_V < 2)
       return ($("#dvErr").innerHTML = "Giving single properties needs the updated Google Sheet script (<b>Code.gs</b>). Until then, tick whole runs.");
@@ -1349,11 +1458,11 @@ function editAccess(kind, x){
       const v = $("#gEnd").value, now = new Date();
       const expires = v === "keep" ? x.expires : v === "today" ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime()
         : v === "24h" ? now.getTime() + 864e5 : v === "3d" ? now.getTime() + 3 * 864e5 : v === "7d" ? now.getTime() + 7 * 864e5 : 0;
-      j = await adminApi("guests.save", {guest: {code: x ? x.code : "", name, runs, stops, runNames, keys, expires}});
-    } else j = await adminApi("drivers.save", {driver: {id: x ? x.id : "", name, pin, runs, stops, runNames, keys}});
-    if (!j || !j.ok){ $("#dvSave").disabled = false; $("#dvSave").textContent = "Save"; $("#dvErr").textContent = j && j.error === "no free guest" ? "All 100 guest PINs are in use. End a guest first." : apiErr(j); return; }
+      j = await adminApi("guests.save", {guest: {code: x ? x.code : "", name, runs, stops, runNames, keys, expires, phone}});
+    } else j = await adminApi("drivers.save", {driver: {id: x ? x.id : "", name, pin, runs, stops, runNames, keys, phone}});
+    if (!j || !j.ok){ $("#dvSave").disabled = false; $("#dvSave").textContent = "Save"; $("#dvErr").textContent = j && j.error === "no free guest" ? "All 100 guest PINs are in use. End a guest first." : j && j.error === "pin taken" ? "Someone else already has that PIN. Tap 🎲 New." : j && j.error === "bad pin format" ? "PINs are 4 numbers, e.g. 4821." : apiErr(j); return; }
     if (guest && !x){ toast(`${name} is set up as a guest: PIN ${j.code}`, 5000);
-      SHARE_CTX = {lists: sharedLists(runs, stops), link: HOSTED, pin: j.code, name}; DV_TAB = "guests"; return openShareDialog(); }
+      SHARE_CTX = {lists: sharedLists(runs, stops), link: HOSTED, pin: j.code, name, phone}; DV_TAB = "guests"; return openShareDialog(); }
     toast(`${name} saved. Their phone updates automatically.`, 3000); openDrivers();
   };
 }
@@ -1395,7 +1504,7 @@ async function refreshAccess(){
   if (!j || !j.ok) return;
   const nk = j.keys || {}, ok = ACCESS.keys || {};
   const same = Object.keys(nk).length === Object.keys(ok).length && Object.keys(nk).every(k => JSON.stringify(nk[k]) === JSON.stringify(ok[k]));
-  save({role: "crew", name: j.name, keys: nk, logKey: j.logKey || "", pin: ACCESS.pin, runs: j.runs || []});
+  save({role: "crew", name: j.name, keys: nk, logKey: j.logKey || "", pin: ACCESS.pin, runs: j.runs || [], kind: j.kind || "driver", driverName: j.driverName || "", truck: j.truck || "", signedAt: ACCESS.signedAt});
   if (!same){ if (NAV.on) RELOAD_AFTER_NAV = true; else { toast("The office updated your runs", 2500); setTimeout(() => location.reload(), 1500); } }
 }
 setInterval(refreshAccess, 120000);
@@ -1428,6 +1537,8 @@ const LOGQ = "routemaps:logq"; let FLUSHING = false, warnedCrew = false;
 const logUrl = () => (S.config && S.config.logUrl) || "";
 // Drivers are already known by their PIN, so only the truck number is asked (once per phone).
 const knownDriver = () => (ACCESS && ACCESS.role === "crew" && ACCESS.name) || "";
+const IS_HELPER = !!(ACCESS && ACCESS.role === "crew" && ACCESS.kind === "helper");
+const IS_DRIVER = !!(ACCESS && ACCESS.role === "crew" && (ACCESS.kind || "driver") === "driver");
 function askDriver(then){
   const d0 = lsGet("routemaps:driver") || {}, known = knownDriver();
   const field = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px";
@@ -1452,7 +1563,9 @@ function askDriver(then){
     const helpers = [...$("#drHelpers").querySelectorAll(".drHelper")].map(x => x.value.trim().replace(/\s+/g, " ")).filter(Boolean);
     if (!name){ $("#drErr").textContent = "Type your name."; return $("#drName").focus(); }
     if (!truck){ $("#drErr").textContent = "Type your truck number."; return $("#drTruck").focus(); }
-    lsSet("routemaps:driver", {name, truck, helpers}); d.close(); then && then(); };
+    lsSet("routemaps:driver", {name, truck, helpers}); d.close();
+    if (IS_DRIVER && window.__rmApi) window.__rmApi({action: "crew.truck", pin: ACCESS.pin, truck, helpers}).catch(() => {});
+    then && then(); };
 }
 // Phone's real GPS position for the log (never the property's own pin).
 function gpsNow(){
@@ -1465,8 +1578,10 @@ function gpsNow(){
 async function logEvent(event, l, p, num, photo, extra = {}){
   if (!logUrl()) return;
   if (!CREW_PW){ if (!warnedCrew){ warnedCrew = true; toast("Saved on this phone. Sign in as crew to send it to the office log.", 3500); } return; }
-  const dv = lsGet("routemaps:driver"); if (!dv || !dv.truck || !Array.isArray(dv.helpers)) return askDriver(() => logEvent(event, l, p, num, photo, extra));
+  const dv = lsGet("routemaps:driver") || {};
   if (knownDriver()) dv.name = knownDriver();
+  if (IS_HELPER){ dv.name = ACCESS.name + " · with " + ACCESS.driverName; dv.truck = dv.truck || ACCESS.truck || ""; }
+  l = l || {name: ""}; p = p || {name: ""};
   const t = extra.t || Date.now();
   const g = extra.noGps ? null : (extra.pos || await gpsNow());
   const dist = g && hasLoc(p) ? Math.round(hav([g.lat, g.lng], [p.lat, p.lng])) : "";
@@ -1516,7 +1631,9 @@ function scopeItems(places){
 // ---------- Service timer: Start / Stop per property (each Start→Stop is one service run in the log) ----------
 const TIMERS = "routemaps:timers", tKey = (l, num) => l.id + "|" + num;
 const timerGet = (l, num) => (lsGet(TIMERS) || {})[tKey(l, num)] || 0;
-function timerStart(l, num){ const t = lsGet(TIMERS) || {}; t[tKey(l, num)] = Date.now(); lsSet(TIMERS, t); }
+function timerStart(l, num){ const t = lsGet(TIMERS) || {}; t[tKey(l, num)] = Date.now(); lsSet(TIMERS, t);
+  const i = l.places.findIndex((q, k) => stopNum(q, k) === num); if (i >= 0) logEvent("start", l, l.places[i], num, "", {});   // GPS where the service started
+}
 function timerClear(l, num){ const t = lsGet(TIMERS) || {}; delete t[tKey(l, num)]; lsSet(TIMERS, t); }
 const svcDur = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + " h " : "") + (h || m ? m + " min " : "") + x + " sec"; };
 const fmtClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
@@ -1814,6 +1931,7 @@ document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); undo(); }
   if (e.key === "Escape" && ui.pick) endPick();
 });
+{ const mh = $("#myHelpersBtn"); if (mh && IS_DRIVER) mh.style.display = ""; const tb = document.querySelector('[data-act="truck"]'); if (tb && IS_HELPER) tb.style.display = "none"; }
 { const lb = $("#langBtn"); if (lb) lb.innerHTML = window.__LANG === "es" ? "English" : "Español " + window.__flagMX; }
 const fm = $("#fileMenu");
 $("#fileBtn").onclick = e => { e.stopPropagation(); fm.classList.toggle("open"); };
@@ -1827,6 +1945,7 @@ fm.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { fm.classList.
   if (a === "print") window.print();
   if (a === "runs-sheet"){ updateRunsSheet(false); return; }
   if (a === "lang"){ window.__setLang(window.__LANG === "es" ? "en" : "es"); return; }
+  if (a === "myhelpers"){ openMyHelpers(); return; }
   if (a === "truck"){ askDriver(() => toast("Saved on this phone")); return; }
   if (a === "admin-in"){ if (window.__FROM_SITE) signOutSite(true); else adminSignIn(); }
   if (a === "signout") signOutSite(false);
@@ -2165,7 +2284,7 @@ function openShareDialog(){
   };
   // phone: remembered per person; a PIN that is a phone number is used automatically
   const phones = lsGet("routemaps:phones") || {}, pinDigits = String(C.pin || "").replace(/\D/g, "");
-  const ph = $("#shPhone"); ph.value = phones[C.name] || C.phone || (/^1?\d{10}$/.test(pinDigits) ? pinDigits : "");
+  const ph = $("#shPhone"); ph.value = C.phone || phones[C.name] || (/^1?\d{10}$/.test(pinDigits) ? pinDigits : "");
   ph.onchange = () => { const p2 = lsGet("routemaps:phones") || {}; p2[C.name] = ph.value.trim(); lsSet("routemaps:phones", p2); };
   const intl = () => { let d = ph.value.replace(/\D/g, ""); if (d.length === 10) d = "1" + d; return d.length >= 11 ? d : ""; };
   $("#shWa").onclick = () => { const n = intl(); viaLink("https://wa.me/" + n + "?text=" + enc(ta.value), "WhatsApp"); };
@@ -2609,7 +2728,7 @@ registerSW(); setTimeout(flushLog, 3000);
     if (stored.role === "admin"){ if (await adminOpen(stored.pw)) return run(); store(null); }
     else if (stored.pin){
       const j = await driverLogin(stored.pin, "Opened the app");
-      if (j && j.ok){ const a = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin: stored.pin, runs: j.runs || [], signedAt: Date.now()}; store(a); await openWith(a); return run(); }
+      if (j && j.ok){ const a = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin: stored.pin, runs: j.runs || [], kind: j.kind || "driver", driverName: j.driverName || "", truck: j.truck || "", signedAt: stored.signedAt || Date.now()}; store(a); await openWith(a); return run(); }
       if (j && !j.ok && (j.error === "bad pin" || j.error === "expired")) store(null);   // removed, PIN changed or guest access ended
       else { await openWith({...stored, offline: true, signedAt: Date.now()}); return run(); }        // no signal: use what this phone already has
     }
@@ -2627,7 +2746,7 @@ registerSW(); setTimeout(flushLog, 3000);
         <form id="ulForm"><input id="ulPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin password" style="${field}">
         <button style="${btn}">Admin Sign-In</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`
       : `<p style="margin:0 0 14px;color:#5f6368">Drivers: enter the PIN the office gave you.</p>
-        <form id="ulForm"><input id="ulPin" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your PIN" style="${field};text-align:center;letter-spacing:.1em;text-transform:uppercase">
+        <form id="ulForm"><input id="ulPin" autocomplete="off" inputmode="numeric" pattern="[0-9]*" spellcheck="false" placeholder="4-digit PIN" style="${field};text-align:center;letter-spacing:.3em;font-size:26px">
         <button style="${btn}">Crew Sign-In</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`;
     const foot = mode === "admin" ? `<a href="#" id="ulBack" style="color:#5f6368;font-size:15px;font-weight:600">Crew Sign-In</a>` : `<a href="#" id="ulAdmin" style="display:inline-block;background:#d93025;color:#fff;font-weight:700;font-size:17px;padding:10px 22px;border-radius:10px;text-decoration:none">🔑 Admin Sign-In</a>`;
     const langLink = `<a href="#" id="ulLang" style="display:inline-block;margin-top:14px;color:#5f6368;font-size:15px;text-decoration:none">${window.__LANG === "es" ? "English" : "Español " + window.__flagMX}</a>`;
@@ -2645,7 +2764,7 @@ registerSW(); setTimeout(flushLog, 3000);
         const j = pin ? await driverLogin(pin, "Signed in with PIN") : null;
         if (!j) err.textContent = "Couldn't reach the office. Check your signal and try again.";
         else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : j.error === "expired" ? "Your guest access has ended. Ask the office for a new PIN." : "That PIN isn't right. Check it and try again.";
-        else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || [], signedAt: Date.now()}; store(acc); await openWith(acc); okd = true; }
+        else { const acc = {role: "crew", name: j.name, keys: j.keys || {}, logKey: j.logKey || "", pin, runs: j.runs || [], kind: j.kind || "driver", driverName: j.driverName || "", truck: j.truck || "", signedAt: Date.now(), fresh: true}; store(acc); await openWith(acc); okd = true; }
       } else {
         if (await adminOpen(inp.value)){ store({role: "admin", pw: inp.value}); okd = true; } else err.textContent = "Wrong password.";
       }
