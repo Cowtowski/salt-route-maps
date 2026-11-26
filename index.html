@@ -545,7 +545,7 @@ function normalize(m){
   m.lists.forEach((l,i) => { l.id = l.id || uid(); l.name = l.name || ("List " + (i+1));
     l.color = l.color || COLORS[i % COLORS.length]; l.visible = l.visible !== false;
     l.places = (l.places || []).map(p => ({id: p.id || uid(), name: p.name || "", address: p.address || "",
-      note: p.note || "", sitemap: p.sitemap || "", smimg: p.smimg || "", lat: p.lat == null ? null : +p.lat, lng: p.lng == null ? null : +p.lng})); });
+      note: p.note || "", sitemap: p.sitemap || "", smimg: p.smimg || "", lat: p.lat == null ? null : +p.lat, lng: p.lng == null ? null : +p.lng, ...(p.stopNo ? {stopNo: String(p.stopNo)} : {})})); });
   return m;
 }
 function lsGet(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }
@@ -1054,6 +1054,7 @@ async function accessKeys(ak, runs, stops){
     if (!ak.keys[id]) continue;
     const pick = stops && stops[id];
     if (!pick) keys[id] = ak.keys[id];
+    else if ((window.__RUNS_V || 1) < 2) keys[id] = {k: ak.keys[id], only: pick};   // site not re-published yet: the phone hides the other stops
     else { const s = {}; for (const n of pick) s[n] = await subKey(ak.keys[id], "stop:" + n); keys[id] = {h: await subKey(ak.keys[id], "head"), s}; }
   }
   return keys;
@@ -1307,8 +1308,6 @@ function editAccess(kind, x){
     if (Object.keys(stops).length && SHEET_V < 2){ const chk = await adminApi("drivers.list"); if (chk && chk.ok) SHEET_V = chk.v || 1; }
     if (Object.keys(stops).length && SHEET_V < 2)
       return ($("#dvErr").innerHTML = "Giving single properties needs the updated Google Sheet script (<b>Code.gs</b>). Until then, tick whole runs.");
-    if (Object.keys(stops).length && (window.__RUNS_V || 1) < 2)
-      return ($("#dvErr").innerHTML = "To share single properties, publish once first: <b>File → ⬆ Publish to site</b>, upload <b>runs.enc</b> to GitHub, then reopen the app. After that, no more uploads are needed for this.");
     const ak = await getAdminKeys(); if (!ak) return;
     const missing = runs.filter(id => !ak.keys[id]);
     if (missing.length) return ($("#dvErr").textContent = `Publish first: ${missing.map(runName).join(", ")} isn't on the site yet.`);
@@ -2511,6 +2510,12 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
   };
   async function openRun(id, k, admin){
     const r = runs.runs[id]; if (!r || !k) return null;
+    if (typeof k === "object" && k.k){                      // some properties only, on a site published the old way: open the run, keep just those stops
+      const o = await openRun(id, k.k, admin); if (!o) return null;
+      const only = new Set((k.only || []).map(String)), num = (p, i) => { const m = /^#\s*(\d+)/.exec(p.note || ""); return m ? m[1] : (p.stopNo || String(i + 1)); };
+      o.list.places = o.list.places.map((p, i) => ({...p, stopNo: num(p, i)})).filter(p => only.has(p.stopNo));
+      return o.list.places.length ? o : null;
+    }
     if (typeof r === "string") return typeof k === "string" ? decRaw(r, k) : null;           // v1 file (whole run, one key)
     const full = typeof k === "string";
     const head = await decRaw(r.h, full ? await subKey(k, "head") : k.h); if (!head) return null;
