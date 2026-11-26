@@ -291,10 +291,167 @@
 <div id="boot" style="position:fixed;inset:0;z-index:200000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;transition:opacity .25s">
   <div style="width:44px;height:44px;border:4px solid #e3e6ea;border-top-color:#1a73e8;border-radius:50%;animation:bootspin .8s linear infinite;margin-bottom:22px"></div>
   <div style="font-size:30px;font-weight:700;color:#202124">Loading...</div>
-  <div style="font-size:18px;font-weight:700;color:#d93025;margin-top:6px;letter-spacing:.04em">Since 1958</div>
+  <div style="font-size:18px;font-weight:700;color:#d93025;margin-top:6px;letter-spacing:.04em">We Care</div>
   <style>@keyframes bootspin{to{transform:rotate(360deg)}}</style>
 </div>
 <script>window.__bootDone = function(){ var b = document.getElementById("boot"); if (!b) return; b.style.opacity = "0"; b.style.pointerEvents = "none"; setTimeout(function(){ b.remove(); }, 300); };</script>
+<script>
+// ---------- Español: translates the app's own words on screen (property names and notes stay as written) ----------
+(function(){
+  var LANG = (function(){ try { return localStorage.getItem("routemaps:lang") || "en"; } catch(e){ return "en"; } })();
+  window.__LANG = LANG;
+  window.__setLang = function(l){ try { localStorage.setItem("routemaps:lang", l); } catch(e){} location.reload(); };
+  window.__flagMX = '<svg viewBox="0 0 21 12" width="21" height="12" style="vertical-align:-1px;border-radius:2px;box-shadow:0 0 0 1px #0002" aria-hidden="true"><rect width="7" height="12" fill="#006847"/><rect x="7" width="7" height="12" fill="#fff"/><rect x="14" width="7" height="12" fill="#ce1126"/><circle cx="10.5" cy="6" r="1.8" fill="#8c5b2b"/></svg>';
+  var D = {
+    "Loading...": "Cargando...",
+    // sign-in
+    "Drivers: enter the PIN the office gave you.": "Conductores: escriban el PIN que les dio la oficina.",
+    "Crew Sign-In": "Iniciar sesión (equipo)", "Admin Sign-In": "Iniciar sesión (admin)", "🔑 Admin Sign-In": "🔑 Iniciar sesión (admin)",
+    "Your PIN": "Su PIN", "Admin password": "Contraseña de admin", "Signing in…": "Iniciando sesión…",
+    "Couldn't reach the office. Check your signal and try again.": "No se pudo conectar con la oficina. Revise su señal e intente de nuevo.",
+    "Too many wrong PINs. Wait 10 minutes and try again.": "Demasiados PIN incorrectos. Espere 10 minutos e intente de nuevo.",
+    "Your guest access has ended. Ask the office for a new PIN.": "Su acceso de invitado terminó. Pida un PIN nuevo a la oficina.",
+    "That PIN isn't right. Check it and try again.": "Ese PIN no es correcto. Revíselo e intente de nuevo.",
+    "That password isn't right.": "Esa contraseña no es correcta.",
+    // header & menus
+    "ADMIN": "ADMIN", "Undo": "Deshacer", "Hide map": "Ocultar mapa", "Show map": "Mostrar mapa", "Route lines": "Líneas de ruta",
+    "File ▾": "Archivo ▾", "👥 Drivers": "👥 Conductores", "Layout when opened": "Diseño al abrir", "Auto (fit the screen)": "Automático (según la pantalla)",
+    "Mobile": "Móvil", "Desktop": "Computadora", "⚙ Settings": "⚙ Ajustes", "📊 Storm progress": "📊 Progreso de la tormenta",
+    "🚚 Truck & helpers": "🚚 Camión y ayudantes", "Sign out of this phone": "Cerrar sesión en este teléfono", "Crew sign out": "Cerrar sesión (equipo)",
+    "Admin sign out": "Cerrar sesión (admin)", "⬆ Publish to site": "⬆ Publicar en el sitio", "Import…": "Importar…", "Print current view": "Imprimir esta vista",
+    "Export CSV (spreadsheet)": "Exportar CSV (hoja de cálculo)", "Export KML (Google Earth / My Maps)": "Exportar KML (Google Earth / My Maps)",
+    "Export GeoJSON": "Exportar GeoJSON", "Export backup (.json)": "Exportar copia de seguridad (.json)", "(CSV, KML, GeoJSON, JSON)": "(CSV, KML, GeoJSON, JSON)",
+    "🔓 Crew Sign-In (show codes)": "🔓 Iniciar sesión (equipo, mostrar códigos)", "English": "English",
+    "👀 View only. Tap a route to see its stops, drive it or share it.": "👀 Solo lectura. Toque una ruta para ver sus paradas o manejarla.",
+    "Show all": "Mostrar todo", "＋ New list": "＋ Lista nueva", "Select all": "Seleccionar todo", "Clear all": "Quitar todo", "None": "Ninguno",
+    // list view
+    "🚗 Drive": "🚗 Manejar", "📍 Drop pin": "📍 Poner pin", "Zoom to list": "Ver toda la lista", "Hide": "Ocultar", "Show": "Mostrar", "More ▾": "Más ▾",
+    "Duplicate list": "Duplicar lista", "Reverse order": "Invertir orden", "⬇ Save map for offline": "⬇ Guardar mapa sin conexión",
+    "Clear ✓ Done marks": "Quitar marcas ✓", "Export this list (CSV)": "Exportar esta lista (CSV)", "Export this list (KML)": "Exportar esta lista (KML)",
+    "Delete list": "Borrar lista", "Search an address or place, press Enter": "Busque una dirección o lugar y presione Enter",
+    "Drag ⋮⋮ (or use ▲▼) to change order. Drag a pin on the map to move it.": "Arrastre ⋮⋮ (o use ▲▼) para cambiar el orden. Arrastre un pin en el mapa para moverlo.",
+    "Drag ⋮⋮ to reorder. Editing a place never changes its position.": "Arrastre ⋮⋮ para reordenar. Editar un lugar no cambia su posición.",
+    "Click the map to drop a pin": "Toque el mapa para poner un pin", "Edit": "Editar", "Directions": "Cómo llegar", "Map": "Mapa",
+    // popup
+    "Street View": "Street View", "Aerial": "Aéreo", "Street View ↗": "Street View ↗", "Loading Street View…": "Cargando Street View…",
+    "Open in Google Maps ↗": "Abrir en Google Maps ↗", "📄 Site map": "📄 Plano del sitio", "Satellite": "Satélite", "Satellite + labels": "Satélite + nombres",
+    "▶ Start service": "▶ Iniciar servicio", "✓ Record Progress": "✓ Registrar avance", "✓ Recorded · undo": "✓ Registrado · deshacer", "📷 Photo": "📷 Foto",
+    // record progress form
+    "Work completed": "Trabajo realizado", "Materials": "Materiales", "Comments": "Comentarios", "✓ Save": "✓ Guardar", "Cancel": "Cancelar", "Save": "Guardar",
+    "Bulk Salt Used": "Sal a granel usada", "Salt Bags Used": "Bolsas de sal usadas", "Ice Melt Bags Used": "Bolsas de derretidor de hielo usadas",
+    "Salt Box Empty/Needs Re-fill": "Caja de sal vacía / necesita rellenar",
+    "Anything the office should know (blocked lot, cars in the way, damage…)": "Algo que la oficina deba saber (estacionamiento bloqueado, carros en el camino, daños…)",
+    "Saving stops the timer.": "Al guardar se detiene el cronómetro.", "⏱ Service run:": "⏱ Servicio:",
+    // truck & helpers
+    "🚚 Who's driving?": "🚚 ¿Quién maneja?", "🚚 Truck & helpers": "🚚 Camión y ayudantes", "Truck #": "Camión #", "Truck # (e.g. 208)": "Camión # (ej. 208)",
+    "Helper's First & Last Name:": "Nombre y apellido del ayudante:", "Helper's First & Last Name": "Nombre y apellido del ayudante", "(leave blank if none)": "(déjelo en blanco si no hay)",
+    "＋ Add another Helper": "＋ Agregar otro ayudante", "Remove this helper": "Quitar este ayudante", "Your name": "Su nombre",
+    "Type your name.": "Escriba su nombre.", "Type your truck number.": "Escriba el número de camión.",
+    "Saved on this phone and added to each completed stop.": "Se guarda en este teléfono y se agrega a cada parada completada.",
+    // drive
+    "Skip ▶": "Saltar ▶", "◎ Recenter": "◎ Centrar", "End": "Terminar", "You're here": "Ya llegó", "Arrived": "Llegó", "Getting directions…": "Buscando la ruta…",
+    "Finding your location…": "Buscando su ubicación…", "That's the first stop": "Esa es la primera parada", "That's the last stop": "Esa es la última parada",
+    "🗺️ Navigate to this stop in Google Maps": "🗺️ Ir a esta parada con Google Maps", "Previous stop": "Parada anterior",
+    "Can't get a GPS fix yet. Make sure location is on.": "Todavía no hay señal GPS. Asegúrese de que la ubicación esté activada.",
+    "⚠ Already serviced on this run": "⚠ Ya se dio servicio en esta ruta", "Service all again": "Dar servicio a todas otra vez",
+    "Only this run counts. The same property on another run isn't affected.": "Solo cuenta esta ruta. La misma propiedad en otra ruta no cambia.",
+    "Nothing left to drive": "No quedan paradas", "Checking which stops are done…": "Revisando qué paradas están hechas…",
+    "Every stop on this run is already done.": "Todas las paradas de esta ruta ya están hechas.", "Route complete. Every stop is done.": "Ruta terminada. Todas las paradas están hechas.",
+    // location
+    "Turn on location?": "¿Activar la ubicación?", "📍 Allow location": "📍 Permitir ubicación", "Not now": "Ahora no", "Allow": "Permitir",
+    "While using the app": "Mientras se usa la app", "Waiting for your browser…": "Esperando al navegador…",
+    "Drive mode uses your phone's GPS to show where you are and give turn-by-turn directions to each stop on the route.": "El modo Manejar usa el GPS del teléfono para mostrar dónde está y darle indicaciones a cada parada de la ruta.",
+    "Next, your browser will ask to allow location. Tap": "Después, el navegador le pedirá permitir la ubicación. Toque",
+    "). Your location stays on this device and isn't saved or shared.": "). Su ubicación se queda en este teléfono y no se guarda ni se comparte.",
+    "(or": "(o", "📍 Location is blocked": "📍 La ubicación está bloqueada", "Try again": "Intentar de nuevo",
+    "Location is on. Tap 🚗 Drive to start.": "La ubicación está activada. Toque 🚗 Manejar para empezar.",
+    "Couldn't get a GPS fix yet. Make sure Location is turned on.": "Todavía no hay señal GPS. Asegúrese de que la ubicación esté activada.",
+    "This browser can't use GPS": "Este navegador no puede usar GPS",
+    // toasts & misc
+    "Saved on this phone": "Guardado en este teléfono", "Undone": "Deshecho", "Nothing to undo": "Nada que deshacer", "PIN copied": "PIN copiado",
+    "The office updated your runs": "La oficina actualizó sus rutas", "Your access was changed by the office": "La oficina cambió su acceso",
+    "Signed out of crew mode.": "Sesión del equipo cerrada.", "Signed out. View only.": "Sesión cerrada. Solo lectura.",
+    "View only. Only the admin can change routes.": "Solo lectura. Solo el admin puede cambiar las rutas.",
+    "⏱ Service started": "⏱ Servicio iniciado", "Couldn't read that photo": "No se pudo leer esa foto", "Searching…": "Buscando…",
+    "Search failed. Check your connection.": "La búsqueda falló. Revise su conexión.", "This route has no mapped stops": "Esta ruta no tiene paradas en el mapa",
+    "Close": "Cerrar", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
+    // tooltips
+    "Undo (Ctrl+Z)": "Deshacer (Ctrl+Z)", "Show or hide the map": "Mostrar u ocultar el mapa", "Draw lines between stops in order": "Dibujar líneas entre las paradas en orden",
+    "Drag to resize the map": "Arrastre para cambiar el tamaño del mapa", "Take or upload a photo": "Tomar o subir una foto", "Mark done": "Marcar como hecha",
+    "Move up": "Subir", "Move down": "Bajar", "Zoom in": "Acercar", "Zoom out": "Alejar", "Layers": "Capas", "Open": "Abrir",
+    "Hide on map": "Ocultar en el mapa", "Drag to reorder": "Arrastre para reordenar", "Reset bearing and pitch": "Volver al norte"
+  };
+  var P = [
+    [/^Stop (\S+) of (\d+) · (\d+) done$/, "Parada $1 de $2 · $3 hechas"],
+    [/^✓ Record Progress · Stop (.+)$/, "✓ Registrar avance · Parada $1"],
+    [/^■ Stop · $/, "■ Detener · "], [/^■ Stop #(\S+) · $/, "■ Detener #$1 · "],
+    [/^Starting at stop (\S+), the property you selected$/, "Empezando en la parada $1, la propiedad que eligió"],
+    [/^⏱ Service started at stop (\S+)(.*)$/, "⏱ Servicio iniciado en la parada $1$2"],
+    [/^📍 Arrival at stop (\S+) recorded$/, "📍 Llegada a la parada $1 registrada"],
+    [/^📷 Photo saved for stop (.+)$/, "📷 Foto guardada para la parada $1"],
+    [/^Sent (\d+) updates? to the office log$/, "Se enviaron $1 registros a la oficina"],
+    [/^Lists · (\d+) · (\d+) places$/, "Listas · $1 · $2 lugares"], [/^(\d+) places$/, "$1 lugares"], [/^(\d+) places · in your order$/i, "$1 lugares · en su orden"],
+    [/^🕒 Routes last updated (.+)$/, "🕒 Rutas actualizadas el $1"],
+    [/^Directions unavailable right now\. Stop (\S+) is (.+) away in a straight line\.$/, "Indicaciones no disponibles ahora. La parada $1 está a $2 en línea recta."],
+    [/^Hi (.+), which truck are you in\? It's saved on this phone and added to each completed stop\.$/, "Hola $1, ¿en qué camión va? Se guarda en este teléfono y se agrega a cada parada completada."],
+    [/^\(started (.+)\)\. Saving stops the timer\.$/, " (inició a las $1). Al guardar se detiene el cronómetro."],
+    [/^run left ≈ (.+)$/, "faltan ≈ $1"], [/^(.+) · run left ≈ (.+)$/, "$1 · faltan ≈ $2"],
+    [/^Hi (.+)$/, "Hola $1"]
+  ];
+  // Spoken + written turn-by-turn directions
+  var DIR = {"left": "a la izquierda", "right": "a la derecha", "slight left": "ligeramente a la izquierda", "slight right": "ligeramente a la derecha",
+    "sharp left": "bruscamente a la izquierda", "sharp right": "bruscamente a la derecha", "straight": "derecho", "uturn": "en U"};
+  var HEAD = {north: "norte", northeast: "noreste", east: "este", southeast: "sureste", south: "sur", southwest: "suroeste", west: "oeste", northwest: "noroeste"};
+  var NAVP = [
+    [/^In (.+?), (.+)$/, function(m, d, r){ return "En " + d + ", " + (tr(r) || r).replace(/^G/, "g").replace(/^C/, "c").replace(/^M/, "m").replace(/^T/, "t").replace(/^S/, "s").replace(/^D/, "d").replace(/^H/, "h").replace(/^A/, "a"); }],
+    [/^Turn (sharp left|sharp right|slight left|slight right|left|right)( onto (.+))?$/, function(m, d, x, n){ return "Gire " + DIR[d] + (n ? " en " + n : ""); }],
+    [/^Keep (left|right|slight left|slight right)( onto (.+))?$/, function(m, d, x, n){ return "Manténgase " + DIR[d] + (n ? " en " + n : ""); }],
+    [/^Continue straight( onto (.+))?$/, function(m, x, n){ return "Siga derecho" + (n ? " en " + n : ""); }],
+    [/^Continue( onto (.+))?$/, function(m, x, n){ return "Continúe" + (n ? " en " + n : ""); }],
+    [/^Head (\w+)( on (.+))?$/, function(m, h, x, n){ return "Diríjase al " + (HEAD[h] || h) + (n ? " por " + n : ""); }],
+    [/^Arrive at the stop(, on the (left|right))?$/, function(m, x, s){ return "Llegue a la parada" + (s ? ", " + DIR[s] : ""); }],
+    [/^At the roundabout, take exit (\d+)( onto (.+))?$/, function(m, e, x, n){ return "En la glorieta, tome la salida " + e + (n ? " hacia " + n : ""); }],
+    [/^Take the ramp( on the (left|right))?( onto (.+))?$/, function(m, x, s, y, n){ return "Tome la rampa" + (s ? " " + DIR[s] : "") + (n ? " hacia " + n : ""); }],
+    [/^Take the exit( on the (left|right))?( onto (.+))?$/, function(m, x, s, y, n){ return "Tome la salida" + (s ? " " + DIR[s] : "") + (n ? " hacia " + n : ""); }],
+    [/^Merge( onto (.+))?$/, function(m, x, n){ return "Incorpórese" + (n ? " a " + n : ""); }],
+    [/^Make a U-turn( on (.+))?$/, function(m, x, n){ return "Dé vuelta en U" + (n ? " en " + n : ""); }],
+    [/^Arrived at stop (\S+), (.+)$/, "Llegó a la parada $1, $2"], [/^Rerouting$/, "Recalculando la ruta"], [/^Route complete$/, "Ruta terminada"]
+  ];
+  function tr(t){
+    if (!t) return null;
+    if (Object.prototype.hasOwnProperty.call(D, t)) return D[t];
+    for (var i = 0; i < P.length; i++) if (P[i][0].test(t)) return t.replace(P[i][0], P[i][1]);
+    for (var j = 0; j < NAVP.length; j++) if (NAVP[j][0].test(t)) return t.replace(NAVP[j][0], NAVP[j][1]);
+    return null;
+  }
+  window.__tr = function(t){ if (LANG !== "es") return t; var r = tr(String(t).trim()); return r == null ? t : r; };
+  if (LANG !== "es") return;
+  document.documentElement.lang = "es";
+  function doText(n){
+    var v = n.nodeValue, t = v.trim(); if (!t || !/[A-Za-z]/.test(t)) return;
+    var r = tr(t); if (r != null && r !== t) n.nodeValue = v.replace(t, r);
+  }
+  function doEl(e){
+    if (e.nodeType !== 1) return;
+    if (e.tagName === "SCRIPT" || e.tagName === "STYLE" || e.tagName === "TEXTAREA") return;
+    ["placeholder", "title"].forEach(function(a){ var v = e.getAttribute && e.getAttribute(a); if (v){ var r = tr(v.trim()); if (r != null && r !== v) e.setAttribute(a, r); } });
+    var w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT), n;
+    while ((n = w.nextNode())){
+      if (n.nodeType === 3){ var p = n.parentNode; if (p && (p.tagName === "SCRIPT" || p.tagName === "STYLE" || p.tagName === "TEXTAREA")) continue; doText(n); }
+      else ["placeholder", "title"].forEach(function(a){ var v = n.getAttribute(a); if (v){ var r = tr(v.trim()); if (r != null && r !== v) n.setAttribute(a, r); } });
+    }
+  }
+  var mo = new MutationObserver(function(list){
+    list.forEach(function(m){
+      if (m.type === "characterData") doText(m.target);
+      else if (m.type === "attributes") doEl(m.target);
+      else m.addedNodes.forEach(function(n){ n.nodeType === 3 ? doText(n) : doEl(n); });
+    });
+  });
+  function start(){ doEl(document.body); mo.observe(document.body, {childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["placeholder", "title"]}); }
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
+})();
+</script>
 <div id="app">
   <header>
     <input id="mapTitle" aria-label="Map title" spellcheck="false"><span class="adminbadge edit-only">ADMIN</span>
@@ -317,6 +474,7 @@
         <button data-act="crew-in" class="crew-out-only local-only">🔓 Crew Sign-In (show codes)</button>
         <button data-act="progress" class="edit-only">📊 Storm progress</button>
         <button data-act="truck">🚚 Truck &amp; helpers</button>
+        <button data-act="lang" id="langBtn">Español</button>
         <button data-act="crew-out" class="crew-only local-only">Crew sign out</button>
         <button data-act="signout" class="site-only view-only">Sign out of this phone</button>
         <hr>
@@ -1622,6 +1780,7 @@ document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); undo(); }
   if (e.key === "Escape" && ui.pick) endPick();
 });
+{ const lb = $("#langBtn"); if (lb) lb.innerHTML = window.__LANG === "es" ? "English" : "Español " + window.__flagMX; }
 const fm = $("#fileMenu");
 $("#fileBtn").onclick = e => { e.stopPropagation(); fm.classList.toggle("open"); };
 document.addEventListener("click", () => document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open")));
@@ -1632,6 +1791,7 @@ fm.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { fm.classList.
   if (a === "exp-geojson") download(slug(S.title) + ".geojson", JSON.stringify(toGeoJSON(vis), null, 1), "application/geo+json");
   if (a === "exp-json") download(slug(S.title) + "-backup.json", JSON.stringify(S, null, 1), "application/json");
   if (a === "print") window.print();
+  if (a === "lang"){ window.__setLang(window.__LANG === "es" ? "en" : "es"); return; }
   if (a === "truck"){ askDriver(() => toast("Saved on this phone")); return; }
   if (a === "admin-in"){ if (window.__FROM_SITE) signOutSite(true); else adminSignIn(); }
   if (a === "signout") signOutSite(false);
@@ -2089,7 +2249,7 @@ function instr(st){
   if (mod === "straight") return `Continue straight${on}`;
   return `Turn ${mod}${on}`;
 }
-function say(text){ if (!NAV.voice || !("speechSynthesis" in window)) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "en-CA"; speechSynthesis.speak(u); } catch(e){} }
+function say(text){ if (!NAV.voice || !("speechSynthesis" in window)) return; try { speechSynthesis.cancel(); const es = window.__LANG === "es"; const u = new SpeechSynthesisUtterance(es ? window.__tr(text) : text); u.lang = es ? "es-MX" : "en-CA"; speechSynthesis.speak(u); } catch(e){} }
 function curStop(){ return NAV.list ? navStops(NAV.list)[NAV.idx] : null; }
 function nextUndone(from){ const st = navStops(NAV.list), done = getDone(NAV.list);
   for (let i = from; i < st.length; i++) if (!done.has(st[i].num) && st[i].target) return i; return -1; }
@@ -2418,7 +2578,9 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
         <form id="ulForm"><input id="ulPin" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Your PIN" style="${field};text-align:center;letter-spacing:.1em;text-transform:uppercase">
         <button style="${btn}">Crew Sign-In</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`;
     const foot = mode === "admin" ? `<a href="#" id="ulBack" style="color:#5f6368;font-size:15px;font-weight:600">Crew Sign-In</a>` : `<a href="#" id="ulAdmin" style="display:inline-block;background:#d93025;color:#fff;font-weight:700;font-size:17px;padding:10px 22px;border-radius:10px;text-decoration:none">🔑 Admin Sign-In</a>`;
-    box.innerHTML = `<div style="background:#fff;border-radius:16px;padding:26px 22px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.18);text-align:center">${head}${body}<div style="margin-top:14px">${foot}</div></div>`;
+    const langLink = `<a href="#" id="ulLang" style="display:inline-block;margin-top:14px;color:#5f6368;font-size:15px;text-decoration:none">${window.__LANG === "es" ? "English" : "Español " + window.__flagMX}</a>`;
+    box.innerHTML = `<div style="background:#fff;border-radius:16px;padding:26px 22px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.18);text-align:center">${head}${body}<div style="margin-top:14px">${foot}</div>${langLink}</div>`;
+    const ll = box.querySelector("#ulLang"); if (ll) ll.onclick = e => { e.preventDefault(); window.__setLang(window.__LANG === "es" ? "en" : "es"); };
     const a = box.querySelector("#ulAdmin"), bk = box.querySelector("#ulBack");
     if (a) a.onclick = e => { e.preventDefault(); screen("admin"); };
     if (bk) bk.onclick = e => { e.preventDefault(); screen("pin"); };
