@@ -487,7 +487,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 c</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 d</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -567,7 +567,8 @@ let S = (function load(){
   const lastId = lsGet("routemaps:last");
   const key = "routemaps:" + (emb ? emb.id : lastId);
   const local = lsGet(key);
-  if (emb && local && (local.savedAt||0) > (emb.savedAt||0)) return normalize(local);
+  // only the admin's own unpublished edits may replace the published routes (never a copy saved while signed in as a driver)
+  if (emb && local && local.savedBy === "admin" && (local.savedAt||0) > (emb.savedAt||0)) return normalize(local);
   if (emb) return emb;
   if (local) return normalize(local);
   return blankMap();
@@ -577,7 +578,8 @@ let ui = {openList: null, selPlace: null, editPlace: null, results: null, pick: 
 let undoStack = [];
 
 function save(){
-  S.savedAt = Date.now();
+  if (!ADMIN && window.EMBEDDED_MAP) return;   // drivers and viewers never store their own copy of the routes
+  S.savedAt = Date.now(); S.savedBy = ADMIN ? "admin" : "";
   lsSet("routemaps:" + S.id, S); lsSet("routemaps:last", S.id);
 }
 function commit(fn, opts={}){
