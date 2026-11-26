@@ -481,13 +481,14 @@
         <button data-act="admin-in" class="view-only">🔑 Admin Sign-In</button>
         <button data-act="settings" class="edit-only">⚙ Settings</button>
         <button data-act="publish" class="edit-only">⬆ Publish to site</button>
+        <button data-act="runs-sheet" class="edit-only">📋 Update Runs tab in sheet</button>
         <button data-act="admin-out" class="edit-only">Admin sign out</button>
         <hr>
         <div style="padding:4px 10px;font-size:12px;color:#888">Layout when opened</div>
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 d</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 e</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1093,6 +1094,21 @@ function signOutSite(toAdmin){
 }
 
 // ---------- Publish (admin) ----------
+// Runs tab in the Google Sheet: every run with stops, distance (first to last stop) and driving time
+async function updateRunsSheet(quiet){
+  if (!ADMIN || !logUrl()) return quiet ? null : toast("Set up the completion log first (File → ⚙ Settings).", 4000);
+  if (!quiet) toast("Measuring every run… (about a minute)", 4000);
+  const runs = [];
+  for (const l of S.lists){
+    const st = navStops(l).filter(x => x.target);
+    let r = null; try { r = await runTime(l); } catch(e){}
+    runs.push({name: l.name, color: l.color, stops: navStops(l).length, dist: r ? Math.round(r.dist) : 0, dur: r ? Math.round(r.dur) : 0});
+    if (st.length > 1) await new Promise(res => setTimeout(res, 350));
+  }
+  const j = await adminApi("runs.save", {runs});
+  if (j && j.ok){ lsSet("routemaps:runsSheetAt", Date.now()); if (!quiet) toast("✓ Runs tab updated in the spreadsheet", 3500); }
+  else if (!quiet) toast(j && j.error === "Unknown action" ? "The Runs tab needs the updated Google Sheet script (Code.gs)." : "Couldn't update the Runs tab: " + apiErr(j), 5000);
+}
 async function publishSite(){
   if (!window.__FROM_SITE && !confirmLocalPublish()) return;
   const ak = await getAdminKeys(); if (!ak) return;
@@ -1115,6 +1131,7 @@ async function publishSite(){
   const meta = {id: S.id, title: S.title, publishedAt: now, savedAt: now, layout: S.layout, view: S.view, showLines: S.showLines, config: S.config || {}};
   const files = [["runs.enc", JSON.stringify(runs), "application/json"], ["meta.json", JSON.stringify(meta), "application/json"]];
   if (KEYS_DIRTY) files.push(["keys.enc", await encPack({keys: ak.keys, logKey: ak.logKey}, ak.pw), "application/octet-stream"]);
+  setTimeout(() => updateRunsSheet(true), 4000);
   files.forEach(([n, data, type], i) => setTimeout(() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], {type})); a.download = n; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000); }, i * 700));
   const names = files.map(f => f[0]);
   if (KEYS_DIRTY && logUrl()) RESAVE_DRIVERS = true;
@@ -1800,6 +1817,7 @@ fm.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { fm.classList.
   if (a === "exp-geojson") download(slug(S.title) + ".geojson", JSON.stringify(toGeoJSON(vis), null, 1), "application/geo+json");
   if (a === "exp-json") download(slug(S.title) + "-backup.json", JSON.stringify(S, null, 1), "application/json");
   if (a === "print") window.print();
+  if (a === "runs-sheet"){ updateRunsSheet(false); return; }
   if (a === "lang"){ window.__setLang(window.__LANG === "es" ? "en" : "es"); return; }
   if (a === "truck"){ askDriver(() => toast("Saved on this phone")); return; }
   if (a === "admin-in"){ if (window.__FROM_SITE) signOutSite(true); else adminSignIn(); }
@@ -2467,7 +2485,8 @@ window.addEventListener("hashchange", () => { if (/^#map=/.test(location.hash)) 
       if (st === "denied"){ lsSet("routemaps:locLater", Date.now()); locHelp(); } else askLocation(false);
     }, 700);
   }
-  initCrew(); registerSW(); setTimeout(flushLog, 3000);
+  initCrew(); if (ADMIN && logUrl() && Date.now() - (lsGet("routemaps:runsSheetAt") || 0) > 12 * 36e5) setTimeout(() => updateRunsSheet(true), 20000);   // keep the sheet's Runs tab fresh
+registerSW(); setTimeout(flushLog, 3000);
   if (!window.EMBEDDED_MAP && !lsGet("routemaps:seen")){ lsSet("routemaps:seen", 1); toast("Tip: File → Import brings in a Google Takeout CSV or KML", 5000); }
 })();
 });
