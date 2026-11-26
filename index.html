@@ -1206,7 +1206,7 @@ async function openDrivers(tab){
     const j = await adminApi("guests.list"); if (!$("#dvBody") || DV_TAB !== "guests") return;
     if (j && j.error === "Unknown action"){ GUEST_FREE = 0; $("#dvBody").innerHTML = `<p>Guests need the updated Google Sheet script. When you can, paste the new <b>Code.gs</b> into the sheet's Apps Script and deploy a new version. Everything else works without it.</p>`; return; }
     if (!j || !j.ok){ $("#dvBody").innerHTML = `<p style="color:var(--danger)">${esc(apiErr(j) || "Cancelled.")}</p>`; return; }
-    GUESTS = j.guests || []; GUEST_FREE = j.free || 0;
+    GUESTS = j.guests || []; GUEST_FREE = j.free || 0; SHEET_V = Math.max(SHEET_V, 2);   // guests only exist in the updated sheet script
     draw = () => {
       const now = Date.now(), v = shown(GUESTS, x => x.code, o => o.x.updated || 0);
       $("#dvBody").innerHTML = `<p style="font-size:14px;color:#3c4352;margin:4px 0">For people helping out who aren't on the regular team. There are 100 ready-made guest PINs: tap <b>＋ Add guest</b>, type their name and pick what they can see. <b>${GUEST_FREE}</b> of 100 free.</p>
@@ -1304,6 +1304,7 @@ function editAccess(kind, x){
     if (!name) return ($("#dvErr").textContent = guest ? "Type the guest's name." : "Type the driver's name.");
     let pin = "";
     if (!guest){ pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (pin.length < 6) return ($("#dvErr").textContent = "PINs need at least 6 letters or numbers."); }
+    if (Object.keys(stops).length && SHEET_V < 2){ const chk = await adminApi("drivers.list"); if (chk && chk.ok) SHEET_V = chk.v || 1; }
     if (Object.keys(stops).length && SHEET_V < 2)
       return ($("#dvErr").innerHTML = "Giving single properties needs the updated Google Sheet script (<b>Code.gs</b>). Until then, tick whole runs.");
     if (Object.keys(stops).length && (window.__RUNS_V || 1) < 2)
