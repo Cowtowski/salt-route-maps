@@ -492,7 +492,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 i</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 j</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1058,7 +1058,8 @@ function startSession(){
   if (!ACCESS.fresh) return;
   try { const a = JSON.parse(localStorage.getItem("routemaps:access")); delete a.fresh; localStorage.setItem("routemaps:access", JSON.stringify(a)); } catch(e){}
   ACCESS.fresh = false;
-  const signedIn = () => logEvent("signin", null, null, "", "", {});
+  // where they signed in: shown as "Sign in: map" in the Map cell of each row they record
+  const signedIn = async () => { const g = await gpsNow(); if (g) lsSet("routemaps:signinPos", {lat: +g.lat.toFixed(6), lng: +g.lng.toFixed(6), t: Date.now()}); else localStorage.removeItem("routemaps:signinPos"); };
   if (IS_HELPER) return signedIn();
   askDriver(signedIn);                 // every sign-in: truck # and helpers, then the sign-in (with GPS) goes to the log
 }
@@ -1179,6 +1180,7 @@ async function signOutSite(toAdmin){
     const until = Date.now() + 9000;
     await logEvent("signout", null, null, "", "", {});
     while (Date.now() < until && (lsGet(LOGQ) || []).length){ await flushLog(); await new Promise(r => setTimeout(r, 400)); }
+    try { localStorage.removeItem("routemaps:signinPos"); localStorage.removeItem("routemaps:timerPos"); } catch(e){}
   }
   try { localStorage.removeItem("routemaps:access"); localStorage.removeItem("routemaps:admin"); localStorage.removeItem("routemaps:crew"); } catch(e){}
   location.hash = toAdmin ? "admin" : ""; location.reload();
@@ -1589,6 +1591,8 @@ async function logEvent(event, l, p, num, photo, extra = {}){
     lat: g ? +g.lat.toFixed(6) : "", lng: g ? +g.lng.toFixed(6) : "", acc: g && g.acc ? Math.round(g.acc) : "", dist: extra.dist ?? dist,
     onsite: extra.onsite || "", signedIn: (window.__ACCESS && window.__ACCESS.signedAt) || "", photo: photo || "", work: extra.work || "", missed: extra.missed || "", materials: extra.materials || "", comment: extra.comment || "",
     startT: extra.start || "", stopT: extra.stop || "", service: extra.service || ""};
+  const si = lsGet("routemaps:signinPos"); if (si){ e.siLat = si.lat; e.siLng = si.lng; }
+  if (extra.startPos){ e.stLat = extra.startPos.lat; e.stLng = extra.startPos.lng; }
   const q = lsGet(LOGQ) || []; q.push(e);
   try { localStorage.setItem(LOGQ, JSON.stringify(q)); } catch(err){ sendLog(e); return; }
   flushLog();
@@ -1631,8 +1635,8 @@ function scopeItems(places){
 // ---------- Service timer: Start / Stop per property (each Start→Stop is one service run in the log) ----------
 const TIMERS = "routemaps:timers", tKey = (l, num) => l.id + "|" + num;
 const timerGet = (l, num) => (lsGet(TIMERS) || {})[tKey(l, num)] || 0;
-function timerStart(l, num){ const t = lsGet(TIMERS) || {}; t[tKey(l, num)] = Date.now(); lsSet(TIMERS, t);
-  const i = l.places.findIndex((q, k) => stopNum(q, k) === num); if (i >= 0) logEvent("start", l, l.places[i], num, "", {});   // GPS where the service started
+function timerStart(l, num){ const t = lsGet(TIMERS) || {}, k = tKey(l, num); t[k] = Date.now(); lsSet(TIMERS, t);
+  gpsNow().then(g => { if (!g) return; const tp = lsGet("routemaps:timerPos") || {}; tp[k] = {lat: +g.lat.toFixed(6), lng: +g.lng.toFixed(6)}; lsSet("routemaps:timerPos", tp); });   // "Service start: map"
 }
 function timerClear(l, num){ const t = lsGet(TIMERS) || {}; delete t[tKey(l, num)]; lsSet(TIMERS, t); }
 const svcDur = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + " h " : "") + (h || m ? m + " min " : "") + x + " sec"; };
@@ -1671,7 +1675,8 @@ function doneForm(l, places, num, onSave){
     const mats = [...f.querySelectorAll("input[name=mat]:checked")].map(b => MATERIALS[+b.value]);
     d.close();
     const det = {work: work.join("; "), missed: missed.join("; "), materials: mats.join("; "), comment: $("#dfCom").value.trim()};
-    if (t0){ const t1 = Date.now(); Object.assign(det, {start: t0, stop: t1, service: svcDur(t1 - t0)}); timerClear(l, num); }
+    if (t0){ const t1 = Date.now(), tp = lsGet("routemaps:timerPos") || {}, k = tKey(l, num);
+      Object.assign(det, {start: t0, stop: t1, service: svcDur(t1 - t0), startPos: tp[k] || null}); delete tp[k]; lsSet("routemaps:timerPos", tp); timerClear(l, num); }
     onSave(det);
   };
 }
