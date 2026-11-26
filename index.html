@@ -306,7 +306,7 @@
   var D = {
     "Loading...": "Cargando...",
     // sign-in
-    "Drivers: enter the PIN the office gave you.": "Conductores: escriban el PIN que les dio la oficina.",
+    "Drivers: enter the PIN the office gave you.": "Conductores: escriban el PIN que les dio la oficina.", "Drivers: enter your PIN. Helpers: enter your phone number.": "Conductores: escriban su PIN. Ayudantes: escriban su número de teléfono.", "PIN or phone number": "PIN o número de teléfono", "Add helper": "Agregar ayudante",
     "Crew Sign-In": "Iniciar sesión (equipo)", "Admin Sign-In": "Iniciar sesión (admin)", "🔑 Admin Sign-In": "🔑 Iniciar sesión (admin)",
     "Your PIN": "Su PIN", "Admin password": "Contraseña de admin", "Signing in…": "Iniciando sesión…",
     "Couldn't reach the office. Check your signal and try again.": "No se pudo conectar con la oficina. Revise su señal e intente de nuevo.",
@@ -375,7 +375,8 @@
     "View only. Only the admin can change routes.": "Solo lectura. Solo el admin puede cambiar las rutas.",
     "⏱ Service started": "⏱ Servicio iniciado", "Couldn't read that photo": "No se pudo leer esa foto", "Searching…": "Buscando…",
     "Search failed. Check your connection.": "La búsqueda falló. Revise su conexión.", "This route has no mapped stops": "Esta ruta no tiene paradas en el mapa",
-    "Close": "Cerrar", "4-digit PIN": "PIN de 4 dígitos", "Sign out (helper)": "Cerrar sesión (ayudante)", "👷 My helpers": "👷 Mis ayudantes", "＋ Add helper": "＋ Agregar ayudante",
+    "Close": "Cerrar", "🧂 Refills": "🧂 Recargas", "🧂 Salt refill": "🧂 Recarga de sal", "refills this shift": "recargas en este turno", "＋ Record a refill": "＋ Registrar una recarga", "− Undo last": "− Deshacer la última",
+    "Each refill is saved to the office log with the time and your location.": "Cada recarga se guarda en el registro de la oficina con la hora y su ubicación.", "Salt refills this shift": "Recargas de sal en este turno", "4-digit PIN": "PIN de 4 dígitos", "Sign out (helper)": "Cerrar sesión (ayudante)", "👷 My helpers": "👷 Mis ayudantes", "＋ Add helper": "＋ Agregar ayudante",
     "Add & get PIN": "Agregar y obtener PIN", "Signing out…": "Cerrando sesión…", "Sign out?": "¿Cerrar sesión?", "Sign out": "Cerrar sesión", "No helpers yet.": "Todavía no hay ayudantes.",
     "Helper's first & last name": "Nombre y apellido del ayudante", "Phone (optional)": "Teléfono (opcional)", "Phone": "Teléfono", "📱 Phone": "📱 Teléfono", "SMS and WhatsApp open with this number and the message already filled in. Just tap Send.": "SMS y WhatsApp se abren con este número y el mensaje ya escrito. Solo toque Enviar.", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
     // tooltips
@@ -460,6 +461,7 @@
     <input id="mapTitle" aria-label="Map title" spellcheck="false"><span class="adminbadge edit-only">ADMIN</span>
     <div class="spacer"></div>
     <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">↶ <span class="hide-sm">Undo</span></button>
+    <button class="btn" id="refillBtn" title="Salt refills this shift">🧂 Refills <b id="refillN">0</b></button>
     <button class="btn" id="mapToggle" title="Show or hide the map">🗺️ <span id="mapToggleTxt">Hide map</span></button>
     <label class="btn" title="Draw lines between stops in order"><input type="checkbox" id="lineToggle"> <span class="hide-sm">Route lines</span></label>
     <div class="menu" id="fileMenu">
@@ -492,7 +494,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 j</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 m</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1074,45 +1076,44 @@ async function openMyHelpers(){
   if (!$("#mhBody")) return;
   if (!j || !j.ok){ $("#mhBody").innerHTML = `<p style="color:var(--danger)">${j && j.error === "Unknown action" ? "Helpers need the updated Google Sheet script." : "Couldn't reach the office. Check your signal and try again."}</p>`; return; }
   const hs = j.helpers || [];
-  $("#mhBody").innerHTML = `<p style="font-size:14px;color:#3c4352;margin-top:0">Helpers sign in on their own phone with their own PIN. They see your runs and can record work. Only they (or the office) can sign them out.</p>
-    ${hs.length ? hs.map((h, i) => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b>👷 ${esc(h.name)}</b><span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(h.pin)}</span></div>
-      ${h.phone ? `<small style="color:#6b7385">📱 ${esc(h.phone)}</small>` : ""}
-      <div style="margin-top:8px"><button class="btn" data-mhsend="${i}" style="min-height:36px">📤 Send sign-in</button></div></div>`).join("") : `<p>No helpers yet.</p>`}`;
-  $("#mhBody").querySelectorAll("[data-mhsend]").forEach(b => b.onclick = () => sendHelperPin(hs[+b.dataset.mhsend]));
+  $("#mhBody").innerHTML = `<p style="font-size:14px;color:#3c4352;margin-top:0">Helpers open the app on their own phone and sign in with their phone number. They see your runs and can record work. Only they (or the office) can sign them out.</p>
+    ${hs.length ? hs.map(h => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">
+      <b>👷 ${esc(h.name)}</b><small style="display:block;color:#6b7385">Signs in with 📱 ${esc(h.phone || h.pin)}</small></div>`).join("") : `<p>No helpers yet.</p>`}`;
 }
 function addMyHelper(){
   const fld = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin:4px 0 12px";
   $("#dlgBody").innerHTML = `<h3>＋ Add helper</h3>
     <label style="font-weight:600">Helper's First &amp; Last Name</label><input id="mhName" autocapitalize="words" style="${fld}">
-    <label style="font-weight:600">Phone</label><input id="mhPhone" type="tel" inputmode="tel" placeholder="e.g. 416 555 0123" style="${fld}">
+    <label style="font-weight:600">Helper's phone number <small style="font-weight:400;color:#6b7385">(they sign in with it)</small></label><input id="mhPhone" type="tel" inputmode="tel" placeholder="e.g. 416 555 0123" style="${fld}">
     <p id="mhErr" style="color:var(--danger);min-height:20px;margin:0"></p>
-    <footer><button class="btn" id="mhBack">Back</button><button class="btn primary" id="mhSave">Add &amp; get PIN</button></footer>`;
+    <footer><button class="btn" id="mhBack">Back</button><button class="btn primary" id="mhSave">Add helper</button></footer>`;
   $("#mhName").focus(); $("#mhBack").onclick = () => openMyHelpers();
   $("#mhSave").onclick = async () => {
     const name = $("#mhName").value.trim().replace(/\s+/g, " "), phone = $("#mhPhone").value.trim();
     if (!name) return ($("#mhErr").textContent = "Type the helper's name.");
+    { let dg = phone.replace(/\D/g, ""); if (dg.length === 11 && dg[0] === "1") dg = dg.slice(1); if (dg.length !== 10) return ($("#mhErr").textContent = "Type their 10-digit phone number."); }
     $("#mhSave").disabled = true; $("#mhSave").textContent = "Adding…";
     let j; try { j = await window.__rmApi({action: "crew.addHelper", pin: ACCESS.pin, helper: {name, phone}}); } catch(e){}
-    if (!j || !j.ok){ $("#mhSave").disabled = false; $("#mhSave").textContent = "Add & get PIN"; return ($("#mhErr").textContent = "Couldn't add the helper. Check your signal and try again."); }
-    sendHelperPin(j.helper);
+    if (!j || !j.ok){ $("#mhSave").disabled = false; $("#mhSave").textContent = "Add helper";
+      return ($("#mhErr").textContent = j && j.error === "phone taken" ? "That phone number is already signed up." : j && j.error === "phone" ? "Type their 10-digit phone number." : "Couldn't add the helper. Check your signal and try again."); }
+    toast(`${name} added. They sign in with their phone number.`, 4500); openMyHelpers();
   };
 }
-function sendHelperPin(h){
-  const msg = `👷 ${h.name}, you're helping ${ACCESS.name} on the salt runs.\n\nOpen this link: ${HOSTED}\nYour PIN: ${h.pin}\n\nYou'll see the same runs and can record work. Tap "Sign out (helper)" at the top when you're done.`;
-  let n = String(h.phone || "").replace(/\D/g, ""); if (n.length === 10) n = "1" + n;
-  $("#dlgBody").innerHTML = `<h3>📤 Send ${esc(h.name)} their PIN</h3>
-    <div class="pinbox"><small>PIN</small><div class="pincode">${esc(h.pin)}</div></div>
-    <textarea id="mhMsg" style="width:100%;box-sizing:border-box;min-height:130px;font:15px/1.4 system-ui;padding:10px;border:1px solid var(--line);border-radius:10px;margin-top:10px">${esc(msg)}</textarea>
-    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" id="mhWa" style="background:#25d366;border-color:#25d366;color:#fff">WhatsApp</button>
-      <button class="btn" id="mhSms">💬 SMS</button><button class="btn" id="mhCopy">Copy text</button></div>
-    <footer><button class="btn" id="mhDone">Done</button></footer>`;
+// ---------- Salt refill counter (per shift; each refill goes to the log with GPS) ----------
+const REFILLS = "routemaps:refills";
+const refillCount = () => { const r = lsGet(REFILLS) || {}; return r.day === new Date().toDateString() && r.since === ((ACCESS && ACCESS.signedAt) || 0) ? r.n || 0 : 0; };
+function setRefills(n){ lsSet(REFILLS, {n, day: new Date().toDateString(), since: (ACCESS && ACCESS.signedAt) || 0}); const e = $("#refillN"); if (e) e.textContent = n; }
+function openRefills(){
+  const n = refillCount();
+  $("#dlgBody").innerHTML = `<h3>🧂 Salt refill</h3>
+    <div style="text-align:center;margin:6px 0 14px"><div style="font-size:48px;font-weight:800;line-height:1" id="rfBig">${n}</div><small style="color:#6b7385">refills this shift</small></div>
+    <button class="btn primary" id="rfAdd" style="width:100%;justify-content:center;min-height:52px;font-size:18px">＋ Record a refill</button>
+    <p style="font-size:13.5px;color:#6b7385;margin:8px 0 0">Each refill is saved to the office log with the time and your location.</p>
+    <footer><button class="btn" id="rfUndo" ${n ? "" : "disabled"}>− Undo last</button><button class="btn" id="rfClose">Close</button></footer>`;
   const d = $("#dlg"); if (!d.open) d.showModal();
-  const txt = () => encodeURIComponent($("#mhMsg").value);
-  $("#mhWa").onclick = () => window.open("https://wa.me/" + (n.length >= 11 ? n : "") + "?text=" + txt(), "_blank", "noopener");
-  $("#mhSms").onclick = () => { location.href = "sms:" + (n.length >= 11 ? "+" + n : "") + "?&body=" + txt(); };
-  $("#mhCopy").onclick = async () => { try { await navigator.clipboard.writeText($("#mhMsg").value); toast("Copied"); } catch(e){ $("#mhMsg").select(); } };
-  $("#mhDone").onclick = () => openMyHelpers();
+  $("#rfClose").onclick = () => d.close();
+  $("#rfAdd").onclick = () => { const k = refillCount() + 1; setRefills(k); logEvent("refill", null, null, "", "", {comment: "Refill #" + k}); toast("🧂 Refill #" + k + " recorded"); d.close(); };
+  $("#rfUndo").onclick = () => { const k = refillCount(); if (!k) return; setRefills(k - 1); logEvent("refillundo", null, null, "", "", {comment: "Refill #" + k + " removed"}); toast("Refill #" + k + " removed"); d.close(); };
 }
 // A copy of some lists that is safe to send outside the app (codes hidden).
 const pubLists = lists => lists.map(l => ({...l, places: l.places.map(p => ({...p, note: redact(noteOf(p))}))}));
@@ -1373,8 +1374,11 @@ function editAccess(kind, x){
   $("#dlgBody").innerHTML = `<h3>${x ? "Edit " + esc(x.name) : guest ? "＋ Add guest" : "＋ Add driver"}</h3>
     <label style="display:block;font-weight:600">${guest ? "Guest's name" : "Name"}</label>
     <input id="dvName" value="${esc(x ? x.name : "")}" placeholder="${guest ? "First & last name" : "e.g. Caleb"}" style="${fld};margin:4px 0 12px">
-    ${guest ? `<label style="display:block;font-weight:600">Guest PIN</label>
-      <div style="font:700 18px ui-monospace,Consolas,monospace;letter-spacing:.08em;margin:4px 0 12px;color:#174ea6">${x ? esc(x.code) : "<span style='font:400 15px system-ui;color:#6b7385'>Picked from the ready-made guest PINs when you save</span>"}</div>
+    ${guest ? `<label style="display:block;font-weight:600">PIN <small style="font-weight:400;color:#6b7385">(4 numbers, their own)</small></label>
+      <div class="row" style="gap:8px;margin:4px 0 4px"><input id="dvPin" value="${esc(x ? x.code : suggest())}" inputmode="numeric" maxlength="4" spellcheck="false" style="${fld};flex:1;font:700 20px ui-monospace,Consolas,monospace;letter-spacing:.3em">
+      <button class="btn" id="dvGen" type="button">🎲 New</button></div>
+      ${x && !/^\d{4}$/.test(x.code) ? `<small style="color:#b06000;display:block">Old-style PIN. Tap 🎲 New (or type 4 numbers) to switch them to a 4-number PIN.</small>` : ""}
+      <div style="margin-bottom:12px"></div>
       <label style="display:block;font-weight:600">Access ends</label>
       <select id="gEnd" style="${fld};margin:4px 0 12px">${x && x.expires ? `<option value="keep" selected>Until ${esc(fmtWhen(x.expires))} (no change)</option>` : ""}${endOpts.map(([v, t]) => `<option value="${v}" ${x && !x.expires && v === "" ? "selected" : ""}>${t}</option>`).join("")}</select>`
     : `<label style="display:block;font-weight:600">PIN <small style="font-weight:400;color:#6b7385">(4 numbers, their own)</small></label>
@@ -1386,7 +1390,7 @@ function editAccess(kind, x){
     <input id="dvPhone" type="tel" inputmode="tel" value="${esc(x && x.phone || "")}" placeholder="e.g. 416 555 0123" style="${fld};margin:4px 0 12px">
     ${!guest && x ? `<div style="display:flex;justify-content:space-between;align-items:center"><b>👷 Helpers</b><a href="#" id="dvAddH">＋ Add helper</a></div>
       <div id="dvHelpers" style="margin:4px 0 12px">${(x.helpers || []).length ? x.helpers.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin:4px 0">
-        <span>👷 ${esc(h.name)} <small style="color:#6b7385">PIN ${esc(h.pin)}${h.phone ? " · 📱 " + esc(h.phone) : ""}</small></span>
+        <span>👷 ${esc(h.name)} <small style="color:#6b7385">signs in with 📱 ${esc(h.phone || h.pin)}</small></span>
         <button class="btn danger" data-hdel="${esc(h.id)}" style="min-height:32px;padding:0 10px">Remove</button></div>`).join("") : `<small style="color:#6b7385">None. Helpers sign in on their own phone and see the same runs as ${esc(x.name)}.</small>`}</div>` : ""}
     <div style="display:flex;justify-content:space-between;align-items:center"><b>What they can see</b><span><a href="#" id="dvAll">Select all</a> · <a href="#" id="dvNone">None</a></span></div>
     <small style="color:#6b7385">Tick a whole run, or tap <b>Pick properties</b> to give only some stops.</small>
@@ -1425,15 +1429,15 @@ function editAccess(kind, x){
   const ah = $("#dvAddH"); if (ah) ah.onclick = e => { e.preventDefault(); if ($("#dvHNew")) return;
     $("#dvHelpers").insertAdjacentHTML("beforeend", `<div id="dvHNew" style="border:1px dashed #9aa0a6;border-radius:10px;padding:8px;margin:6px 0">
       <input id="dvHName" placeholder="Helper's first & last name" autocapitalize="words" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
-      <input id="dvHPhone" type="tel" inputmode="tel" placeholder="Phone (optional)" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
-      <button class="btn primary" id="dvHGo" type="button">Add &amp; get PIN</button></div>`);
+      <input id="dvHPhone" type="tel" inputmode="tel" placeholder="Phone number (they sign in with it)" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
+      <button class="btn primary" id="dvHGo" type="button">Add helper</button></div>`);
     $("#dvHName").focus();
     $("#dvHGo").onclick = async () => { const nm = $("#dvHName").value.trim().replace(/\s+/g, " "), ph = $("#dvHPhone").value.trim(); if (!nm) return $("#dvHName").focus();
+    { let dg = ph.replace(/\D/g, ""); if (dg.length === 11 && dg[0] === "1") dg = dg.slice(1); if (dg.length !== 10){ toast("Type the helper's 10-digit phone number.", 3500); return $("#dvHPhone").focus(); } }
     $("#dvHGo").disabled = true;
     const r = await adminApi("helpers.save", {helper: {driverId: x.id, name: nm.trim(), phone: ph.trim()}});
-    if (!r || !r.ok){ $("#dvHGo").disabled = false; return toast(r && r.error === "Unknown action" ? "Helpers need the updated Google Sheet script." : "Couldn't add: " + apiErr(r), 4000); }
-    toast(`${nm.trim()} added · PIN ${r.helper.pin}`, 5000); x.helpers = (x.helpers || []).concat(r.helper);
-    SHARE_CTX = {lists: sharedLists(x.runs, x.stops), link: HOSTED, pin: r.helper.pin, name: nm.trim(), phone: ph.trim()}; openShareDialog(); }; };
+    if (!r || !r.ok){ $("#dvHGo").disabled = false; return toast(r && r.error === "phone taken" ? "That phone number is already signed up." : r && r.error === "phone" ? "Type the helper's 10-digit phone number." : "Couldn't add: " + apiErr(r), 4000); }
+    toast(`${nm} added. They sign in with their phone number.`, 4500); x.helpers = (x.helpers || []).concat(r.helper); editAccess(kind, x); }; };
   document.querySelectorAll("[data-hdel]").forEach(b => b.onclick = async () => { const h = (x.helpers || []).find(q => q.id === b.dataset.hdel); if (!h) return;
     b.disabled = true; const r = await adminApi("helpers.delete", {id: h.id}); if (!r || !r.ok){ b.disabled = false; return toast("Couldn't remove: " + apiErr(r), 4000); }
     x.helpers = x.helpers.filter(q => q.id !== h.id); toast(h.name + " removed. Their PIN stops working within 2 minutes."); editAccess(kind, x); });
@@ -1445,7 +1449,8 @@ function editAccess(kind, x){
     runs.forEach(id => { const st = runStops(getList(id)), cur = sel.get(id); if (cur.size < st.length) stops[id] = st.map(s => s.num).filter(n => cur.has(n)); });
     if (!name) return ($("#dvErr").textContent = guest ? "Type the guest's name." : "Type the driver's name.");
     let pin = "";
-    if (!guest){ pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (!/^\d{4}$/.test(pin) && !(x && pin === x.pin)) return ($("#dvErr").textContent = "PINs are 4 numbers, e.g. 4821."); }
+    pin = $("#dvPin").value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!/^\d{4}$/.test(pin) && !(x && pin === (guest ? x.code : x.pin))) return ($("#dvErr").textContent = "PINs are 4 numbers, e.g. 4821.");
     const phone = $("#dvPhone").value.trim();
     if (Object.keys(stops).length && SHEET_V < 2){ const chk = await adminApi("drivers.list"); if (chk && chk.ok) SHEET_V = chk.v || 1; }
     if (Object.keys(stops).length && SHEET_V < 2)
@@ -1460,12 +1465,14 @@ function editAccess(kind, x){
       const v = $("#gEnd").value, now = new Date();
       const expires = v === "keep" ? x.expires : v === "today" ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime()
         : v === "24h" ? now.getTime() + 864e5 : v === "3d" ? now.getTime() + 3 * 864e5 : v === "7d" ? now.getTime() + 7 * 864e5 : 0;
-      j = await adminApi("guests.save", {guest: {code: x ? x.code : "", name, runs, stops, runNames, keys, expires, phone}});
+      j = await adminApi("guests.save", {guest: {code: x ? x.code : "", pin, name, runs, stops, runNames, keys, expires, phone}});
     } else j = await adminApi("drivers.save", {driver: {id: x ? x.id : "", name, pin, runs, stops, runNames, keys, phone}});
     if (!j || !j.ok){ $("#dvSave").disabled = false; $("#dvSave").textContent = "Save"; $("#dvErr").textContent = j && j.error === "no free guest" ? "All 100 guest PINs are in use. End a guest first." : j && j.error === "pin taken" ? "Someone else already has that PIN. Tap 🎲 New." : j && j.error === "bad pin format" ? "PINs are 4 numbers, e.g. 4821." : apiErr(j); return; }
     if (guest && !x){ toast(`${name} is set up as a guest: PIN ${j.code}`, 5000);
       SHARE_CTX = {lists: sharedLists(runs, stops), link: HOSTED, pin: j.code, name, phone}; DV_TAB = "guests"; return openShareDialog(); }
-    toast(`${name} saved. Their phone updates automatically.`, 3000); openDrivers();
+    if (guest && x && j.code && j.code !== x.code) toast(`${name}'s PIN is now ${j.code}. Send it to them; the old one stopped working.`, 6000);
+    else toast(`${name} saved. Their phone updates automatically.`, 3000);
+    openDrivers();
   };
 }
 function endGuest(x){
@@ -1937,6 +1944,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && ui.pick) endPick();
 });
 { const mh = $("#myHelpersBtn"); if (mh && IS_DRIVER) mh.style.display = ""; const tb = document.querySelector('[data-act="truck"]'); if (tb && IS_HELPER) tb.style.display = "none"; }
+{ const rb = $("#refillBtn"); if (rb){ rb.onclick = openRefills; $("#refillN").textContent = refillCount(); } }
 { const lb = $("#langBtn"); if (lb) lb.innerHTML = window.__LANG === "es" ? "English" : "Español " + window.__flagMX; }
 const fm = $("#fileMenu");
 $("#fileBtn").onclick = e => { e.stopPropagation(); fm.classList.toggle("open"); };
@@ -2750,8 +2758,8 @@ registerSW(); setTimeout(flushLog, 3000);
       ? `<p style="margin:0 0 14px;color:#5f6368">Admin Sign-In</p>
         <form id="ulForm"><input id="ulPw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin password" style="${field}">
         <button style="${btn}">Admin Sign-In</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`
-      : `<p style="margin:0 0 14px;color:#5f6368">Drivers: enter the PIN the office gave you.</p>
-        <form id="ulForm"><input id="ulPin" autocomplete="off" inputmode="numeric" pattern="[0-9]*" spellcheck="false" placeholder="4-digit PIN" style="${field};text-align:center;letter-spacing:.3em;font-size:26px">
+      : `<p style="margin:0 0 14px;color:#5f6368">Drivers: enter your PIN. Helpers: enter your phone number.</p>
+        <form id="ulForm"><input id="ulPin" autocomplete="off" inputmode="tel" spellcheck="false" placeholder="PIN or phone number" style="${field};text-align:center;letter-spacing:.12em;font-size:22px">
         <button style="${btn}">Crew Sign-In</button><p id="ulErr" style="color:#d93025;min-height:22px;margin:10px 0 0"></p></form>`;
     const foot = mode === "admin" ? `<a href="#" id="ulBack" style="color:#5f6368;font-size:15px;font-weight:600">Crew Sign-In</a>` : `<a href="#" id="ulAdmin" style="display:inline-block;background:#d93025;color:#fff;font-weight:700;font-size:17px;padding:10px 22px;border-radius:10px;text-decoration:none">🔑 Admin Sign-In</a>`;
     const langLink = `<a href="#" id="ulLang" style="display:inline-block;margin-top:14px;color:#5f6368;font-size:15px;text-decoration:none">${window.__LANG === "es" ? "English" : "Español " + window.__flagMX}</a>`;
@@ -2765,7 +2773,7 @@ registerSW(); setTimeout(flushLog, 3000);
       e.preventDefault(); err.textContent = ""; go.disabled = true; const label = go.textContent; go.textContent = "Signing in…";
       let okd = false;
       if (mode === "pin"){
-        const pin = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        let pin = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (/^1\d{10}$/.test(pin)) pin = pin.slice(1);   // phone numbers with a leading 1
         const j = pin ? await driverLogin(pin, "Signed in with PIN") : null;
         if (!j) err.textContent = "Couldn't reach the office. Check your signal and try again.";
         else if (!j.ok) err.textContent = j.error === "locked" ? "Too many wrong PINs. Wait 10 minutes and try again." : j.error === "expired" ? "Your guest access has ended. Ask the office for a new PIN." : "That PIN isn't right. Check it and try again.";
