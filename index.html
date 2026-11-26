@@ -31,7 +31,7 @@
   html,body{margin:0;height:100%;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
   button,input,select,textarea{font:inherit;color:inherit}
   button{cursor:pointer}
-  #app{display:grid;grid-template-rows:auto 1fr;height:100%}
+  #app{display:grid;grid-template-rows:auto 1fr;height:100%;height:100dvh}
   header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
   #mapTitle{font-weight:650;font-size:16px;border:1px solid transparent;border-radius:6px;padding:4px 6px;min-width:120px;background:transparent}
   #mapTitle:hover,#mapTitle:focus{border-color:var(--line);outline:none}
@@ -47,7 +47,7 @@
   .icon:hover{background:#eef0f4;color:var(--ink)}
   main{display:grid;grid-template-columns:360px 1fr;min-height:0}
   aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-  #side{overflow:auto;flex:1;padding:10px}
+  #side{overflow:auto;flex:1;padding:10px;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   #map{min-height:0;height:100%}
   .row{display:flex;align-items:center;gap:8px}
   .list-item{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:6px;background:#fff}
@@ -119,7 +119,7 @@
   .mapwrap{position:relative;min-height:0}
   #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#202124;color:#fff;padding:9px 14px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:2000;max-width:90vw}
   #toast.show{opacity:1}
-  dialog{border:none;border-radius:14px;padding:0;max-width:min(560px,94vw);box-shadow:0 10px 40px #0004}
+  dialog{border:none;border-radius:14px;padding:0;max-width:min(560px,94vw);box-shadow:0 10px 40px #0004;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px)}
   dialog::backdrop{background:#0006}
   .dlg{padding:18px 20px}
   .dlg h3{margin:0 0 8px}
@@ -487,6 +487,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 c</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1769,8 +1770,11 @@ function setMapHidden(h){
 $("#mapToggle").onclick = () => setMapHidden(!document.body.classList.contains("mapcollapsed"));
 setMapHidden(!!lsGet("routemaps:mapHidden"));
 (function(){ // drag the bar under the map to make it taller or shorter (phone layout)
-  const g = $("#mapGrip"), setH = px => { const vh = innerHeight, h = Math.max(120, Math.min(vh * 0.8, px)); document.body.style.setProperty("--maph", Math.round(h) + "px"); return h; };
+  // the list under the map always keeps at least ~230px, so a tall map can never squeeze it to one row
+  const g = $("#mapGrip"), maxH = () => { const hd = ($("header") || {}).offsetHeight || 0; return Math.max(140, Math.min(innerHeight * 0.6, innerHeight - hd - 230)); };
+  const setH = px => { const h = Math.max(120, Math.min(maxH(), px)); document.body.style.setProperty("--maph", Math.round(h) + "px"); return h; };
   const saved = +lsGet("routemaps:mapH"); if (saved) setH(saved);
+  addEventListener("resize", () => { const cur = +lsGet("routemaps:mapH"); if (cur){ setH(cur); map.invalidateSize(); } });
   let y0 = 0, h0 = 0, dragging = false;
   g.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); dragging = true; y0 = e.clientY; h0 = $(".mapwrap").getBoundingClientRect().height; g.setPointerCapture(e.pointerId); });
   g.addEventListener("pointermove", e => { if (!dragging) return; setH(h0 + e.clientY - y0); map.invalidateSize(); });
