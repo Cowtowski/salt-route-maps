@@ -375,7 +375,7 @@
     "View only. Only the admin can change routes.": "Solo lectura. Solo el admin puede cambiar las rutas.",
     "⏱ Service started": "⏱ Servicio iniciado", "Couldn't read that photo": "No se pudo leer esa foto", "Searching…": "Buscando…",
     "Search failed. Check your connection.": "La búsqueda falló. Revise su conexión.", "This route has no mapped stops": "Esta ruta no tiene paradas en el mapa",
-    "Close": "Cerrar", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
+    "Close": "Cerrar", "📱 Phone": "📱 Teléfono", "SMS and WhatsApp open with this number and the message already filled in. Just tap Send.": "SMS y WhatsApp se abren con este número y el mensaje ya escrito. Solo toque Enviar.", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
     // tooltips
     "Undo (Ctrl+Z)": "Deshacer (Ctrl+Z)", "Show or hide the map": "Mostrar u ocultar el mapa", "Draw lines between stops in order": "Dibujar líneas entre las paradas en orden",
     "Drag to resize the map": "Arrastre para cambiar el tamaño del mapa", "Take or upload a photo": "Tomar o subir una foto", "Mark done": "Marcar como hecha", "Start service": "Iniciar servicio", "Stop and record progress": "Detener y registrar avance", "Mark not done": "Marcar como no hecha",
@@ -489,7 +489,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 g</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-26 h</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -2067,6 +2067,9 @@ function openShareDialog(){
     <div class="pinbox"><div style="font-size:14px">${esc(C.name)}'s PIN</div><div class="pincode">${esc(C.pin)}</div>
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="shCopyPin" style="min-height:36px">Copy PIN</button>
 </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-weight:600">📱 Phone
+        <input id="shPhone" type="tel" inputmode="tel" placeholder="e.g. 416 555 0123" style="flex:1;min-width:0;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px"></label>
+      <small style="color:#3c4352;display:block;margin-top:4px">SMS and WhatsApp open with this number and the message already filled in. Just tap Send.</small>
       <small style="color:#3c4352;display:block;margin-top:6px">The PIN is included in the message. Runs right now: ${C.lists.map(l => esc(l.name)).join(", ") || "none"}.</small></div>
     <label style="display:none">Route
       <select id="shScope"><option value="ctx">ctx</option></select></label>
@@ -2160,10 +2163,15 @@ function openShareDialog(){
       <footer><button class="btn primary" id="okAttach">Done</button></footer>`;
     $("#okAttach").onclick = () => d.close();
   };
-  $("#shWa").onclick = () => viaLink("https://wa.me/?text=" + enc(ta.value), "WhatsApp");
+  // phone: remembered per person; a PIN that is a phone number is used automatically
+  const phones = lsGet("routemaps:phones") || {}, pinDigits = String(C.pin || "").replace(/\D/g, "");
+  const ph = $("#shPhone"); ph.value = phones[C.name] || C.phone || (/^1?\d{10}$/.test(pinDigits) ? pinDigits : "");
+  ph.onchange = () => { const p2 = lsGet("routemaps:phones") || {}; p2[C.name] = ph.value.trim(); lsSet("routemaps:phones", p2); };
+  const intl = () => { let d = ph.value.replace(/\D/g, ""); if (d.length === 10) d = "1" + d; return d.length >= 11 ? d : ""; };
+  $("#shWa").onclick = () => { const n = intl(); viaLink("https://wa.me/" + n + "?text=" + enc(ta.value), "WhatsApp"); };
   $("#shMail").onclick = () => viaLink(`mailto:?subject=${enc(title())}&body=${enc(ta.value.replace(/\r?\n/g, "\r\n"))}`, "your email app");
   $("#shGmail").onclick = () => viaLink(`https://mail.google.com/mail/?view=cm&fs=1&su=${enc(title())}&body=${enc(ta.value)}`, "Gmail");
-  $("#shSms").onclick = () => viaLink("sms:?&body=" + enc(ta.value), "your messages app");
+  $("#shSms").onclick = () => { const n = intl(); viaLink("sms:" + (n ? "+" + n : "") + "?&body=" + enc(ta.value), "your messages app"); };
   // Email version: "Please press on the blue link" becomes a real link with the address hidden behind it
   $("#shCopyMail").onclick = async () => {
     const lines = ta.value.split("\n").map(line => {
