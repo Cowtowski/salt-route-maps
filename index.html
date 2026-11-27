@@ -501,7 +501,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 c</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 d</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1162,7 +1162,9 @@ function wireShift(){
     if (!sh){
       b.disabled = true; b.textContent = "Starting…";
       const g = await gpsNow();
-      lsSet(SHIFT, {t: Date.now(), lat: g ? +g.lat.toFixed(6) : "", lng: g ? +g.lng.toFixed(6) : ""});
+      const ns = {t: Date.now(), lat: g ? +g.lat.toFixed(6) : "", lng: g ? +g.lng.toFixed(6) : ""};
+      lsSet(SHIFT, ns);
+      logEvent("shiftstart", null, null, "", "", {shift: ns, t: ns.t, pos: g || undefined, noGps: !g});
       toast("▶ Shift started" + (g ? "" : " (no GPS fix, location not recorded)"), 3000); return redraw();
     }
     $("#dlgBody").innerHTML = `<h3>■ End your shift?</h3>
@@ -1674,7 +1676,7 @@ function gpsNow(){
 }
 async function logEvent(event, l, p, num, photo, extra = {}){
   if (!logUrl()) return;
-  if (VIEW_ONLY && event !== "signout" && event !== "shiftend") return;
+  if (VIEW_ONLY && event !== "signout" && event !== "shiftend" && event !== "shiftstart") return;
   if (!CREW_PW){ if (!warnedCrew){ warnedCrew = true; toast("Saved on this phone. Sign in as crew to send it to the office log.", 3500); } return; }
   const dv = lsGet("routemaps:driver") || {};
   if (knownDriver()) dv.name = knownDriver();
