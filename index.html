@@ -467,6 +467,7 @@
     <input id="mapTitle" aria-label="Map title" spellcheck="false"><span class="adminbadge edit-only">ADMIN</span>
     <div class="spacer"></div>
     <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">↶ <span class="hide-sm">Undo</span></button>
+    <span id="shiftWrap"></span>
     <button class="btn" id="refillBtn" title="Salt refills this shift">🧂 Refills <b id="refillN">0</b></button>
     <button class="btn" id="mapToggle" title="Show or hide the map">🗺️ <span id="mapToggleTxt">Hide map</span></button>
     <label class="btn" title="Draw lines between stops in order"><input type="checkbox" id="lineToggle"> <span class="hide-sm">Route lines</span></label>
@@ -500,7 +501,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 a</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 b</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -854,7 +855,6 @@ function detailView(l){
       ${ui.results ? `<div class="results">${ui.results.length ? ui.results.map((r,i) => `<div data-res="${i}"><b>${esc(r.name)}</b><small>${esc(r.full)}</small></div>`).join("") : `<div style="cursor:default"><small>No matches. Try adding the city, or drop a pin instead.</small></div>`}</div>` : ""}
     </form>
     <div class="toolbar">
-      <span id="shiftWrap">${shiftBtnHtml()}</span>
       <button class="btn primary" id="drive">🚗 Drive</button>
       <button class="btn" id="dropPin">📍 Drop pin</button>
       <button class="btn" id="fit">Zoom to list</button>
@@ -924,7 +924,6 @@ function bindDetailView(l){
   $("#fit").onclick = () => fitList(l);
   showRunTime(l);
   $("#drive").onclick = () => driveRun(l);
-  wireShift();
   $("#vis").onclick = () => commit(() => { l.visible = !l.visible; }, {view: true});
   $("#dropPin").onclick = () => startPick("Click the map to add a place to “" + l.name + "”", async ll => {
     const p = addPlace(l, {name: "", lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6)});
@@ -2036,6 +2035,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && ui.pick) endPick();
 });
 { const mh = $("#myHelpersBtn"); if (mh && IS_DRIVER) mh.style.display = ""; const tb = document.querySelector('[data-act="truck"]'); if (tb && IS_HELPER) tb.style.display = "none"; }
+{ const sw = $("#shiftWrap"); if (sw){ sw.innerHTML = shiftBtnHtml(); wireShift(); } }
 { const rb = $("#refillBtn"); if (rb){ rb.onclick = openRefills; $("#refillN").textContent = refillCount(); } }
 { const lb = $("#langBtn"); if (lb) lb.innerHTML = window.__LANG === "es" ? "English" : "Español " + window.__flagMX; }
 const fm = $("#fileMenu");
