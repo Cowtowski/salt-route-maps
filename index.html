@@ -383,7 +383,8 @@
     "Where you start and end your shift is saved to the office log.": "El lugar donde inicia y termina su turno se guarda en el registro de la oficina.", "Others": "Otros", "🎫 Others": "🎫 Otros", "＋ Add other": "＋ Agregar otro", "Skip": "Omitir", "Drivers & helpers: enter your PIN.": "Conductores y ayudantes: escriban su PIN.", "Your PIN": "Su PIN", "Can record work": "Puede registrar trabajo",
     "What can they do?": "¿Qué puede hacer?", "👀 View only": "👀 Solo ver", "✍️ View & record work": "✍️ Ver y registrar trabajo", "📤 Send sign-in": "📤 Enviar acceso", "🧂 Refills": "🧂 Recargas", "🧂 Salt refill": "🧂 Recarga de sal", "refills this shift": "recargas en este turno", "＋ Record a refill": "＋ Registrar una recarga", "− Undo last": "− Deshacer la última",
     "Each refill is saved to the office log with the time and your location.": "Cada recarga se guarda en el registro de la oficina con la hora y su ubicación.", "Salt refills this shift": "Recargas de sal en este turno", "4-digit PIN": "PIN de 4 dígitos", "Sign out (helper)": "Cerrar sesión (ayudante)", "👷 My helpers": "👷 Mis ayudantes", "＋ Add helper": "＋ Agregar ayudante",
-    "Add & get PIN": "Agregar y obtener PIN", "👷 Helpers": "👷 Ayudantes", "(tick who's with you today)": "(marque quién está con usted hoy)",
+    "Add & get PIN": "Agregar y obtener PIN", "Helper's phone number": "Teléfono del ayudante", "Name": "Nombre", "(optional)": "(opcional)", "Number not available. Try again.": "Número no disponible. Intente de nuevo.",
+    "Type the helper's 10-digit phone number.": "Escriba el teléfono de 10 dígitos del ayudante.", "That person is already one of your helpers.": "Esa persona ya es uno de sus ayudantes.", "👷 Helpers": "👷 Ayudantes", "(tick who's with you today)": "(marque quién está con usted hoy)",
     "Each helper signs in on their own phone with their own PIN and sees your runs.": "Cada ayudante entra en su propio teléfono con su propio PIN y ve sus rutas.", "Loading helpers…": "Cargando ayudantes…",
     "Can record work": "Puede registrar trabajo", "(off = view only)": "(apagado = solo ver)", "(no PIN)": "(sin PIN)", "Couldn't load your helpers. Check your signal.": "No se pudieron cargar sus ayudantes. Revise su señal.", "Signing out…": "Cerrando sesión…", "Sign out?": "¿Cerrar sesión?", "Sign out": "Cerrar sesión", "No helpers yet.": "Todavía no hay ayudantes.",
     "Helper's first & last name": "Nombre y apellido del ayudante", "Phone (optional)": "Teléfono (opcional)", "Phone": "Teléfono", "📱 Phone": "📱 Teléfono", "SMS and WhatsApp open with this number and the message already filled in. Just tap Send.": "SMS y WhatsApp se abren con este número y el mensaje ya escrito. Solo toque Enviar.", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
@@ -502,7 +503,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 e</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 f</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1089,21 +1090,24 @@ const helperCard = (h, i, today) => `<div style="border:1px solid var(--line);bo
   ${h.phone ? `<small style="color:#6b7385;display:block;margin:2px 0 0 32px">📱 ${esc(h.phone)}</small>` : ""}
   <label style="display:flex;gap:10px;align-items:center;margin:8px 0 8px 32px;cursor:pointer"><input type="checkbox" data-mhperm="${i}" ${h.canSubmit ? "checked" : ""} style="width:20px;height:20px"><span>Can record work <small style="color:#6b7385">(off = view only)</small></span></label>
   <button type="button" class="btn" data-mhsend="${i}" style="min-height:36px;margin-left:32px">📤 Send sign-in</button></div>`;
+// Helpers must already be on the office's Others list (matched by phone number)
+const helperErr = j => !j ? "Couldn't add the helper. Check your signal and try again." : j.error === "not in others" ? "Number not available. Try again."
+  : j.error === "phone" ? "Type the helper's 10-digit phone number." : j.error === "already helper" ? "That person is already one of your helpers." : "Couldn't add the helper. Check your signal and try again.";
 function addMyHelper(back, onAdded){
   const fld = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin:4px 0 12px";
   $("#dlgBody").innerHTML = `<h3>＋ Add helper</h3>
-    <label style="font-weight:600">Helper's First &amp; Last Name</label><input id="mhName" autocapitalize="words" style="${fld}">
-    <label style="font-weight:600">Phone <small style="font-weight:400;color:#6b7385">(to send them their PIN)</small></label><input id="mhPhone" type="tel" inputmode="tel" placeholder="e.g. 416 555 0123" style="${fld}">
+    <label style="font-weight:600">Helper's phone number</label><input id="mhPhone" type="tel" inputmode="tel" placeholder="e.g. 416 555 0123" style="${fld}">
+    <label style="font-weight:600">Name <small style="font-weight:400;color:#6b7385">(optional)</small></label><input id="mhName" autocapitalize="words" style="${fld}">
     <label style="font-weight:600">What can they do?</label>${permChoice("mhPerm", false)}
     <p id="mhErr" style="color:var(--danger);min-height:20px;margin:0"></p>
     <footer><button class="btn" id="mhBack">Back</button><button class="btn primary" id="mhSave">Add &amp; get PIN</button></footer>`;
-  $("#mhName").focus(); $("#mhBack").onclick = () => back();
+  $("#mhPhone").focus(); $("#mhBack").onclick = () => back();
   $("#mhSave").onclick = async () => {
     const name = $("#mhName").value.trim().replace(/\s+/g, " "), phone = $("#mhPhone").value.trim(), canSubmit = (document.querySelector('[name="mhPerm"]:checked') || {}).value === "yes";
-    if (!name) return ($("#mhErr").textContent = "Type the helper's name.");
+    if (phone.replace(/\D/g, "").length < 10){ $("#mhPhone").focus(); return ($("#mhErr").textContent = "Type the helper's 10-digit phone number."); }
     $("#mhSave").disabled = true; $("#mhSave").textContent = "Adding…";
     let j; try { j = await window.__rmApi({action: "crew.addHelper", pin: ACCESS.pin, helper: {name, phone, canSubmit}}); } catch(e){}
-    if (!j || !j.ok){ $("#mhSave").disabled = false; $("#mhSave").textContent = "Add & get PIN"; return ($("#mhErr").textContent = "Couldn't add the helper. Check your signal and try again."); }
+    if (!j || !j.ok){ $("#mhSave").disabled = false; $("#mhSave").textContent = "Add & get PIN"; return ($("#mhErr").textContent = helperErr(j)); }
     onAdded && onAdded(j.helper);
     sendHelperPin(j.helper, ACCESS.name, back);
   };
@@ -1497,16 +1501,17 @@ function editAccess(kind, x){
   const gen = $("#dvGen"); if (gen) gen.onclick = () => { $("#dvPin").value = suggest(); };
   const ah = $("#dvAddH"); if (ah) ah.onclick = e => { e.preventDefault(); if ($("#dvHNew")) return;
     $("#dvHelpers").insertAdjacentHTML("beforeend", `<div id="dvHNew" style="border:1px dashed #9aa0a6;border-radius:10px;padding:8px;margin:6px 0">
-      <input id="dvHName" placeholder="Helper's first & last name" autocapitalize="words" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
-      <input id="dvHPhone" type="tel" inputmode="tel" placeholder="Phone (optional, to send their PIN)" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
+      <input id="dvHPhone" type="tel" inputmode="tel" placeholder="Helper's phone number (must be in Others)" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
+      <input id="dvHName" placeholder="Name (optional)" autocapitalize="words" style="width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
       ${permChoice("dvHPerm", false)}
       <button class="btn primary" id="dvHGo" type="button">Add &amp; get PIN</button></div>`);
-    $("#dvHName").focus();
-    $("#dvHGo").onclick = async () => { const nm = $("#dvHName").value.trim().replace(/\s+/g, " "), ph = $("#dvHPhone").value.trim(); if (!nm) return $("#dvHName").focus();
+    $("#dvHPhone").focus();
+    $("#dvHGo").onclick = async () => { const nm = $("#dvHName").value.trim().replace(/\s+/g, " "), ph = $("#dvHPhone").value.trim();
+    if (ph.replace(/\D/g, "").length < 10){ toast("Type the helper's 10-digit phone number.", 3500); return $("#dvHPhone").focus(); }
     const canSubmit = (document.querySelector('[name="dvHPerm"]:checked') || {}).value === "yes";
     $("#dvHGo").disabled = true;
     const r = await adminApi("helpers.save", {helper: {driverId: x.id, name: nm.trim(), phone: ph.trim(), canSubmit}});
-    if (!r || !r.ok){ $("#dvHGo").disabled = false; return toast(r && r.error === "phone taken" ? "That phone number is already signed up." : r && r.error === "phone" ? "Type the helper's 10-digit phone number." : "Couldn't add: " + apiErr(r), 4000); }
+    if (!r || !r.ok){ $("#dvHGo").disabled = false; return toast(r && /^(not in others|phone|already helper)$/.test(r.error) ? helperErr(r) : "Couldn't add: " + apiErr(r), 4000); }
     x.helpers = (x.helpers || []).concat(r.helper); sendHelperPin(r.helper, x.name, () => editAccess(kind, x)); }; };
   document.querySelectorAll("[data-hsend]").forEach(b => b.onclick = () => { const h = (x.helpers || []).find(q => q.id === b.dataset.hsend); if (h) sendHelperPin(h, x.name, () => editAccess(kind, x)); });
   document.querySelectorAll("[data-hperm]").forEach(c => c.onchange = async () => { const h = (x.helpers || []).find(q => q.id === c.dataset.hperm); if (!h) return; c.disabled = true;
