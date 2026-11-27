@@ -503,7 +503,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 f</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 g</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1092,7 +1092,7 @@ const helperCard = (h, i, today) => `<div style="border:1px solid var(--line);bo
   <button type="button" class="btn" data-mhsend="${i}" style="min-height:36px;margin-left:32px">📤 Send sign-in</button></div>`;
 // Helpers must already be on the office's Others list (matched by phone number)
 const helperErr = j => !j ? "Couldn't add the helper. Check your signal and try again." : j.error === "not in others" ? "Number not available. Try again."
-  : j.error === "phone" ? "Type the helper's 10-digit phone number." : j.error === "already helper" ? "That person is already one of your helpers." : "Couldn't add the helper. Check your signal and try again.";
+  : j.error === "phone" ? "Type the helper's 10-digit phone number." : j.error === "already helper" ? "That person is already one of your helpers." : j.error === "helper elsewhere" ? "That person is already helping " + (j.driver || "another driver") + "." : "Couldn't add the helper. Check your signal and try again.";
 function addMyHelper(back, onAdded){
   const fld = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin:4px 0 12px";
   $("#dlgBody").innerHTML = `<h3>＋ Add helper</h3>
@@ -1511,7 +1511,7 @@ function editAccess(kind, x){
     const canSubmit = (document.querySelector('[name="dvHPerm"]:checked') || {}).value === "yes";
     $("#dvHGo").disabled = true;
     const r = await adminApi("helpers.save", {helper: {driverId: x.id, name: nm.trim(), phone: ph.trim(), canSubmit}});
-    if (!r || !r.ok){ $("#dvHGo").disabled = false; return toast(r && /^(not in others|phone|already helper)$/.test(r.error) ? helperErr(r) : "Couldn't add: " + apiErr(r), 4000); }
+    if (!r || !r.ok){ $("#dvHGo").disabled = false; return toast(r && /^(not in others|phone|already helper|helper elsewhere)$/.test(r.error) ? helperErr(r) : "Couldn't add: " + apiErr(r), 4000); }
     x.helpers = (x.helpers || []).concat(r.helper); sendHelperPin(r.helper, x.name, () => editAccess(kind, x)); }; };
   document.querySelectorAll("[data-hsend]").forEach(b => b.onclick = () => { const h = (x.helpers || []).find(q => q.id === b.dataset.hsend); if (h) sendHelperPin(h, x.name, () => editAccess(kind, x)); });
   document.querySelectorAll("[data-hperm]").forEach(c => c.onchange = async () => { const h = (x.helpers || []).find(q => q.id === c.dataset.hperm); if (!h) return; c.disabled = true;
