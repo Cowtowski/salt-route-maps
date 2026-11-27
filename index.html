@@ -501,7 +501,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 b</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 c</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1687,7 +1687,7 @@ async function logEvent(event, l, p, num, photo, extra = {}){
     lat: g ? +g.lat.toFixed(6) : "", lng: g ? +g.lng.toFixed(6) : "", acc: g && g.acc ? Math.round(g.acc) : "", dist: extra.dist ?? dist,
     onsite: extra.onsite || "", signedIn: (window.__ACCESS && window.__ACCESS.signedAt) || "", photo: photo || "", work: extra.work || "", missed: extra.missed || "", materials: extra.materials || "", comment: extra.comment || "",
     startT: extra.start || "", stopT: extra.stop || "", service: extra.service || ""};
-  const si = lsGet("routemaps:signinPos"); if (si){ e.siLat = si.lat; e.siLng = si.lng; }
+  const si = lsGet("routemaps:signinPos"); if (si){ e.siLat = si.lat; e.siLng = si.lng; e.siT = si.t; }
   if (ACCESS && ACCESS.role === "crew" && ACCESS.pin) e.pin = ACCESS.pin;
   { const sh = extra.shift || lsGet(SHIFT); if (sh){ e.shT = sh.t; e.shLat = sh.lat; e.shLng = sh.lng; } }   // "Shift start: map"
   if (extra.startPos){ e.stLat = extra.startPos.lat; e.stLng = extra.startPos.lng; }
