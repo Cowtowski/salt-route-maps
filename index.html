@@ -383,7 +383,9 @@
     "Where you start and end your shift is saved to the office log.": "El lugar donde inicia y termina su turno se guarda en el registro de la oficina.", "Others": "Otros", "🎫 Others": "🎫 Otros", "＋ Add other": "＋ Agregar otro", "Skip": "Omitir", "Drivers & helpers: enter your PIN.": "Conductores y ayudantes: escriban su PIN.", "Your PIN": "Su PIN", "Can record work": "Puede registrar trabajo",
     "What can they do?": "¿Qué puede hacer?", "👀 View only": "👀 Solo ver", "✍️ View & record work": "✍️ Ver y registrar trabajo", "📤 Send sign-in": "📤 Enviar acceso", "🧂 Refills": "🧂 Recargas", "🧂 Salt refill": "🧂 Recarga de sal", "refills this shift": "recargas en este turno", "＋ Record a refill": "＋ Registrar una recarga", "− Undo last": "− Deshacer la última",
     "Each refill is saved to the office log with the time and your location.": "Cada recarga se guarda en el registro de la oficina con la hora y su ubicación.", "Salt refills this shift": "Recargas de sal en este turno", "4-digit PIN": "PIN de 4 dígitos", "Sign out (helper)": "Cerrar sesión (ayudante)", "👷 My helpers": "👷 Mis ayudantes", "＋ Add helper": "＋ Agregar ayudante",
-    "Add & get PIN": "Agregar y obtener PIN", "Signing out…": "Cerrando sesión…", "Sign out?": "¿Cerrar sesión?", "Sign out": "Cerrar sesión", "No helpers yet.": "Todavía no hay ayudantes.",
+    "Add & get PIN": "Agregar y obtener PIN", "👷 Helpers": "👷 Ayudantes", "(tick who's with you today)": "(marque quién está con usted hoy)",
+    "Each helper signs in on their own phone with their own PIN and sees your runs.": "Cada ayudante entra en su propio teléfono con su propio PIN y ve sus rutas.", "Loading helpers…": "Cargando ayudantes…",
+    "Can record work": "Puede registrar trabajo", "(off = view only)": "(apagado = solo ver)", "(no PIN)": "(sin PIN)", "Couldn't load your helpers. Check your signal.": "No se pudieron cargar sus ayudantes. Revise su señal.", "Signing out…": "Cerrando sesión…", "Sign out?": "¿Cerrar sesión?", "Sign out": "Cerrar sesión", "No helpers yet.": "Todavía no hay ayudantes.",
     "Helper's first & last name": "Nombre y apellido del ayudante", "Phone (optional)": "Teléfono (opcional)", "Phone": "Teléfono", "📱 Phone": "📱 Teléfono", "SMS and WhatsApp open with this number and the message already filled in. Just tap Send.": "SMS y WhatsApp se abren con este número y el mensaje ya escrito. Solo toque Enviar.", "Back": "Atrás", "Yes": "Sí", "No": "No", "Done": "Hecho",
     // tooltips
     "Undo (Ctrl+Z)": "Deshacer (Ctrl+Z)", "Show or hide the map": "Mostrar u ocultar el mapa", "Draw lines between stops in order": "Dibujar líneas entre las paradas en orden",
@@ -486,7 +488,6 @@
         <button data-act="crew-in" class="crew-out-only local-only">🔓 Crew Sign-In (show codes)</button>
         <button data-act="progress" class="edit-only">📊 Storm progress</button>
         <button data-act="truck">🚚 Truck &amp; helpers</button>
-        <button data-act="myhelpers" id="myHelpersBtn" style="display:none">👷 My helpers</button>
         <button data-act="lang" id="langBtn">Español</button>
         <button data-act="crew-out" class="crew-only local-only">Crew sign out</button>
         <button data-act="signout" class="site-only view-only">Sign out of this phone</button>
@@ -501,7 +502,7 @@
         <button data-act="lay-desktop"><span class="chk" data-chk="desktop"></span>Desktop</button>
         <button data-act="lay-mobile"><span class="chk" data-chk="mobile"></span>Mobile</button>
         <button data-act="lay-auto"><span class="chk" data-chk="auto"></span>Auto (fit the screen)</button>
-        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 d</div>
+        <div style="padding:6px 10px 2px;font-size:11.5px;color:#999">App version 2026-11-27 e</div>
       </div>
     </div>
     <button class="btn primary edit-only" id="driversBtn">👥 Drivers</button>
@@ -1080,29 +1081,15 @@ const permPill = on => on ? `<span style="color:#137333;font-weight:700">✍️ 
 const permChoice = (name, on) => `<div style="display:grid;gap:6px;margin:4px 0 12px">
   <label style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer"><input type="radio" name="${name}" value="no" ${on ? "" : "checked"} style="width:20px;height:20px;margin-top:2px"><span><b>👀 View only</b><small style="display:block;color:#6b7385">Sees the runs and what needs to be done. Can't record work.</small></span></label>
   <label style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer"><input type="radio" name="${name}" value="yes" ${on ? "checked" : ""} style="width:20px;height:20px;margin-top:2px"><span><b>✍️ View &amp; record work</b><small style="display:block;color:#6b7385">Can start / stop service, take photos and submit progress.</small></span></label></div>`;
-async function openMyHelpers(){
-  if (!IS_DRIVER || !window.__rmApi) return;
-  $("#dlgBody").innerHTML = `<h3>👷 My helpers</h3><div id="mhBody"><p>Loading…</p></div>
-    <footer><button class="btn" id="mhClose">Close</button><button class="btn primary" id="mhAdd">＋ Add helper</button></footer>`;
-  const d = $("#dlg"); if (!d.open) d.showModal(); $("#mhClose").onclick = () => d.close();
-  $("#mhAdd").onclick = () => addMyHelper();
-  let j; try { j = await window.__rmApi({action: "crew.helpers", pin: ACCESS.pin}); } catch(e){}
-  if (!$("#mhBody")) return;
-  if (!j || !j.ok){ $("#mhBody").innerHTML = `<p style="color:var(--danger)">${j && j.error === "Unknown action" ? "Helpers need the updated Google Sheet script." : "Couldn't reach the office. Check your signal and try again."}</p>`; return; }
-  const hs = j.helpers || [];
-  $("#mhBody").innerHTML = `<p style="font-size:14px;color:#3c4352;margin-top:0">Helpers sign in on their own phone with their own PIN and see your runs. Only they (or the office) can sign them out.</p>
-    ${hs.length ? hs.map((h, i) => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b>👷 ${esc(h.name)}</b><span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6">PIN ${esc(h.pin)}</span></div>
-      ${h.phone ? `<small style="color:#6b7385">📱 ${esc(h.phone)}</small>` : ""}
-      <label style="display:flex;gap:10px;align-items:center;margin:8px 0;cursor:pointer"><input type="checkbox" data-mhperm="${i}" ${h.canSubmit ? "checked" : ""} style="width:22px;height:22px"><span>Can record work <small style="color:#6b7385">(off = view only)</small></span></label>
-      <button class="btn" data-mhsend="${i}" style="min-height:36px">📤 Send sign-in</button></div>`).join("") : `<p>No helpers yet.</p>`}`;
-  $("#mhBody").querySelectorAll("[data-mhsend]").forEach(b => b.onclick = () => sendHelperPin(hs[+b.dataset.mhsend], ACCESS.name, () => openMyHelpers()));
-  $("#mhBody").querySelectorAll("[data-mhperm]").forEach(c => c.onchange = async () => { const h = hs[+c.dataset.mhperm]; c.disabled = true;
-    let r; try { r = await window.__rmApi({action: "crew.setHelper", pin: ACCESS.pin, id: h.id, canSubmit: c.checked}); } catch(e){}
-    c.disabled = false; if (!r || !r.ok){ c.checked = !c.checked; return toast("Couldn't change that. Check your signal.", 3500); }
-    h.canSubmit = c.checked; toast(`${h.name}: ${c.checked ? "can record work" : "view only"}. Their phone updates within 2 minutes.`, 4000); });
-}
-function addMyHelper(){
+// One helper account inside 🚚 Truck & helpers: riding today?, PIN, permission, send sign-in
+const helperCard = (h, i, today) => `<div style="border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <label style="display:flex;gap:10px;align-items:center;cursor:pointer;margin:0"><input type="checkbox" class="drToday" data-name="${esc(h.name)}" ${today ? "checked" : ""} style="width:22px;height:22px"><b>👷 ${esc(h.name)}</b></label>
+    <span style="font:700 15px ui-monospace,Consolas,monospace;color:#174ea6;white-space:nowrap">PIN ${esc(h.pin)}</span></div>
+  ${h.phone ? `<small style="color:#6b7385;display:block;margin:2px 0 0 32px">📱 ${esc(h.phone)}</small>` : ""}
+  <label style="display:flex;gap:10px;align-items:center;margin:8px 0 8px 32px;cursor:pointer"><input type="checkbox" data-mhperm="${i}" ${h.canSubmit ? "checked" : ""} style="width:20px;height:20px"><span>Can record work <small style="color:#6b7385">(off = view only)</small></span></label>
+  <button type="button" class="btn" data-mhsend="${i}" style="min-height:36px;margin-left:32px">📤 Send sign-in</button></div>`;
+function addMyHelper(back, onAdded){
   const fld = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin:4px 0 12px";
   $("#dlgBody").innerHTML = `<h3>＋ Add helper</h3>
     <label style="font-weight:600">Helper's First &amp; Last Name</label><input id="mhName" autocapitalize="words" style="${fld}">
@@ -1110,14 +1097,15 @@ function addMyHelper(){
     <label style="font-weight:600">What can they do?</label>${permChoice("mhPerm", false)}
     <p id="mhErr" style="color:var(--danger);min-height:20px;margin:0"></p>
     <footer><button class="btn" id="mhBack">Back</button><button class="btn primary" id="mhSave">Add &amp; get PIN</button></footer>`;
-  $("#mhName").focus(); $("#mhBack").onclick = () => openMyHelpers();
+  $("#mhName").focus(); $("#mhBack").onclick = () => back();
   $("#mhSave").onclick = async () => {
     const name = $("#mhName").value.trim().replace(/\s+/g, " "), phone = $("#mhPhone").value.trim(), canSubmit = (document.querySelector('[name="mhPerm"]:checked') || {}).value === "yes";
     if (!name) return ($("#mhErr").textContent = "Type the helper's name.");
     $("#mhSave").disabled = true; $("#mhSave").textContent = "Adding…";
     let j; try { j = await window.__rmApi({action: "crew.addHelper", pin: ACCESS.pin, helper: {name, phone, canSubmit}}); } catch(e){}
     if (!j || !j.ok){ $("#mhSave").disabled = false; $("#mhSave").textContent = "Add & get PIN"; return ($("#mhErr").textContent = "Couldn't add the helper. Check your signal and try again."); }
-    sendHelperPin(j.helper, ACCESS.name, () => openMyHelpers());
+    onAdded && onAdded(j.helper);
+    sendHelperPin(j.helper, ACCESS.name, back);
   };
 }
 // The message a helper gets: their PIN, in English or Spanish, by SMS / WhatsApp to their phone
@@ -1637,8 +1625,10 @@ const knownDriver = () => (ACCESS && ACCESS.role === "crew" && ACCESS.name) || "
 const IS_HELPER = !!(ACCESS && ACCESS.role === "crew" && ACCESS.kind === "helper");
 const VIEW_ONLY = IS_HELPER && ACCESS.canSubmit === false;   // a helper who can look but not record work
 const IS_DRIVER = !!(ACCESS && ACCESS.role === "crew" && (ACCESS.kind || "driver") === "driver");
+let DR_DRAFT = null;   // what was typed/ticked in Truck & helpers while adding or messaging a helper
 function askDriver(then){
   const d0 = lsGet("routemaps:driver") || {}, known = knownDriver();
+  if (IS_DRIVER && known && window.__rmApi) return askDriverCrew(then, d0, known);
   const field = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px";
   const helpers0 = Array.isArray(d0.helpers) && d0.helpers.length ? d0.helpers : [""];
   const hRow = (v, i) => `<div class="row hrow" style="gap:6px;margin-bottom:8px"><input class="drHelper" value="${esc(v)}" placeholder="Helper's First & Last Name" autocapitalize="words" style="${field};flex:1">${i ? `<button type="button" class="btn drHdel" title="Remove this helper" style="min-width:44px">✕</button>` : ""}</div>`;
@@ -1665,6 +1655,47 @@ function askDriver(then){
     lsSet("routemaps:driver", {name, truck, helpers}); d.close();
     if (IS_DRIVER && window.__rmApi) window.__rmApi({action: "crew.truck", pin: ACCESS.pin, truck, helpers}).catch(() => {});
     then && then(); };
+}
+// Drivers: truck # plus their helpers in one place. Each helper has their own PIN; tick who's riding today.
+async function askDriverCrew(then, d0, known){
+  const field = "width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border:1px solid var(--line);border-radius:10px";
+  const dr = DR_DRAFT || {truck: d0.truck || ACCESS.truck || "", today: Array.isArray(d0.helpers) ? d0.helpers.slice() : []}; DR_DRAFT = null;
+  $("#dlgBody").innerHTML = `<h3>🚚 Truck &amp; helpers</h3>
+    <p>Hi ${esc(known)}, which truck are you in, and who's riding with you today?</p>
+    <form id="drForm"><label style="display:block;font-weight:600;margin-bottom:4px">Truck #</label>
+    <input id="drTruck" value="${esc(dr.truck)}" placeholder="Truck # (e.g. 208)" inputmode="text" style="${field};margin-bottom:14px">
+    <label style="display:block;font-weight:600">👷 Helpers <small style="font-weight:400;color:#6b7385">(tick who's with you today)</small></label>
+    <small style="display:block;color:#6b7385;margin:2px 0 4px">Each helper signs in on their own phone with their own PIN and sees your runs.</small>
+    <div id="drAcc"><p>Loading helpers…</p></div>
+    <button type="button" class="btn" id="drAddH">＋ Add helper</button>
+    <p id="drErr" style="color:var(--danger);min-height:20px;margin:6px 0 0"></p>
+    <footer>${then && then.skippable ? `<button class="btn" type="button" id="drSkip">Skip</button>` : `<button class="btn" type="button" id="drCancel">Cancel</button>`}<button class="btn primary" type="submit">Save</button></footer></form>`;
+  const d = $("#dlg"); if (!d.open) d.showModal(); if (!dr.truck) $("#drTruck").focus();
+  const sk = $("#drSkip"); if (sk) sk.onclick = () => { d.close(); then(); };
+  const cc = $("#drCancel"); if (cc) cc.onclick = () => d.close();
+  const ticked = () => [...$("#dlgBody").querySelectorAll(".drToday:checked")].map(x => x.dataset.name);
+  const keep = () => { DR_DRAFT = {truck: $("#drTruck").value.trim(), today: ticked()}; };
+  const again = () => askDriver(then);
+  $("#drAddH").onclick = () => { keep(); addMyHelper(again, h => DR_DRAFT.today.push(h.name)); };
+  $("#drForm").onsubmit = e => { e.preventDefault();
+    const truck = $("#drTruck").value.trim(), helpers = ticked();
+    if (!truck){ $("#drErr").textContent = "Type your truck number."; return $("#drTruck").focus(); }
+    lsSet("routemaps:driver", {name: known, truck, helpers}); d.close();
+    window.__rmApi({action: "crew.truck", pin: ACCESS.pin, truck, helpers}).catch(() => {});
+    then && then(); };
+  let j; try { j = await window.__rmApi({action: "crew.helpers", pin: ACCESS.pin}); } catch(e){}
+  const box = $("#drAcc"); if (!box) return;
+  const hs = (j && j.ok && j.helpers) || [], names = hs.map(h => h.name);
+  const extra = dr.today.filter(n => names.indexOf(n) < 0);   // typed earlier, no PIN of their own
+  box.innerHTML = (j && j.ok ? "" : `<p style="color:var(--danger);font-size:14px">Couldn't load your helpers. Check your signal.</p>`)
+    + hs.map((h, i) => helperCard(h, i, dr.today.indexOf(h.name) > -1)).join("")
+    + extra.map(n => `<label style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;cursor:pointer"><input type="checkbox" class="drToday" data-name="${esc(n)}" checked style="width:22px;height:22px"><b>👷 ${esc(n)}</b> <small style="color:#6b7385">(no PIN)</small></label>`).join("")
+    + (!hs.length && !extra.length && j && j.ok ? `<p style="color:#6b7385">No helpers yet.</p>` : "");
+  box.querySelectorAll("[data-mhsend]").forEach(b => b.onclick = () => { keep(); sendHelperPin(hs[+b.dataset.mhsend], known, again); });
+  box.querySelectorAll("[data-mhperm]").forEach(c => c.onchange = async () => { const h = hs[+c.dataset.mhperm]; c.disabled = true;
+    let r; try { r = await window.__rmApi({action: "crew.setHelper", pin: ACCESS.pin, id: h.id, canSubmit: c.checked}); } catch(e){}
+    c.disabled = false; if (!r || !r.ok){ c.checked = !c.checked; return toast("Couldn't change that. Check your signal.", 3500); }
+    h.canSubmit = c.checked; toast(`${h.name}: ${c.checked ? "can record work" : "view only"}. Their phone updates within 2 minutes.`, 4000); });
 }
 // Phone's real GPS position for the log (never the property's own pin).
 function gpsNow(){
@@ -2036,7 +2067,7 @@ document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); undo(); }
   if (e.key === "Escape" && ui.pick) endPick();
 });
-{ const mh = $("#myHelpersBtn"); if (mh && IS_DRIVER) mh.style.display = ""; const tb = document.querySelector('[data-act="truck"]'); if (tb && IS_HELPER) tb.style.display = "none"; }
+{ const tb = document.querySelector('[data-act="truck"]'); if (tb && IS_HELPER) tb.style.display = "none"; }
 { const sw = $("#shiftWrap"); if (sw){ sw.innerHTML = shiftBtnHtml(); wireShift(); } }
 { const rb = $("#refillBtn"); if (rb){ rb.onclick = openRefills; $("#refillN").textContent = refillCount(); } }
 { const lb = $("#langBtn"); if (lb) lb.innerHTML = window.__LANG === "es" ? "English" : "Español " + window.__flagMX; }
@@ -2052,7 +2083,6 @@ fm.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { fm.classList.
   if (a === "print") window.print();
   if (a === "runs-sheet"){ updateRunsSheet(false); return; }
   if (a === "lang"){ window.__setLang(window.__LANG === "es" ? "en" : "es"); return; }
-  if (a === "myhelpers"){ openMyHelpers(); return; }
   if (a === "truck"){ askDriver(() => toast("Saved on this phone")); return; }
   if (a === "admin-in"){ if (window.__FROM_SITE) signOutSite(true); else adminSignIn(); }
   if (a === "signout") signOutSite(false);
